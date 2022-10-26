@@ -271,6 +271,16 @@ plt.axhline(y = .70, color = 'g')
 
 #Post-Hoc Code Coming Up!
       
-                           
+#Making a Correlation Plot (Visualize per participant)
+
+#Full plot
+plotting.plot_matrix(correlation_matrix[0], figure=(10, 8), labels=labels[1:],
+                     vmax=1, vmin=-1, reorder=True, auto_fit = True) 
+
+#Note that at the moment there are A LOT of labels! Working on it to try to adjust this, however!
+
+#Triangle
+plotting.plot_matrix(correlation_matrix[0], figure=(10, 8), labels=labels[1:],
+                     vmax=1, vmin=-1, reorder=True, tri='diag', auto_fit = True) 
                       
 
