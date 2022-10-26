@@ -1,0 +1,276 @@
+%matplotlib inline
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+import seaborn as sns
+
+import sklearn as scikitlearn
+import scipy
+import bokeh as bokeh
+import enigmatoolbox
+import os as os
+import nilearn as nl
+import nibabel as nibl
+from nilearn import plotting
+from nilearn import image
+import statsmodels
+import pingouin
+import sympy as symbol_py
+
+
+#This is to check WHERE your data are
+dir_good = "/Users/alexander_bailey/Desktop/QPN_fMRI_Data"
+!nib-ls /Users/alexander_bailey/Desktop/QPN_fMRI_Data/*/func/*MNI152NLin2009cAsym_res-2_desc-preproc_bold.nii.gz
+
+#Now, I want to select my specific fMRI files, so let's use glob.glob to do just that
+dir_path = dir_good
+
+# Which subjects to consider for main process
+sub_index = np.array(data_frame_neuropsych_main_composites['ID'])
+print(sub_index)
+
+#Let's set up our pathnames
+indexes_files_good = []
+for sub in range(len(sub_index)):
+    indexes_files_good.append(dir_path + '/' + str(sub_index[sub]))
+
+import glob as glob
+rest_files = []
+for i in range(len(indexes_files_good)):
+    rest_files.append(glob.glob(str(indexes_files_good[i]) + '/func/*_ses-01_task-rest_run-1_space-MNI152NLin2009cAsym_res-2_desc-preproc_bold.nii.gz'))
+                     
+confound_files = []
+for i in range(len(indexes_files_good)):
+    confound_files.append(glob.glob(str(indexes_files_good[i]) + '/func/*_ses-01_task-rest_run-1_desc-confounds_timeseries.tsv'))
+
+#Wonderfully, THIS FOR LOOP WORKS!!! This is the correct code to find our participants and in their proper order
+
+## Now, let's get our data into the correct file format (notice that you need to concatenate in order to have a single array/vector, or Python will NOT be happy!
+
+rest_files = list(np.concatenate(rest_files, axis=None)) 
+
+confound_files = list(np.concatenate(confound_files, axis=None))
+
+#Now, let's begin the process of making our rsfMRI Corr Plot and get our values; note that we need our confounds to do so
+
+from nilearn import interfaces
+
+confounds_nilearn_full = list()
+for i in range(len(rest_files)):
+    j = interfaces.fmriprep.load_confounds(rest_files[i], global_signal='power2')
+    confounds_nilearn_full.append(pd.DataFrame(j[0])) #Needed to place it as the 0th index for each j because of the way that nilearn works for this selection process
+
+pd.DataFrame(confounds_nilearn_full) #just to see what we have
+
+#Now, let's get our parcellations up and running
+
+from nilearn import datasets
+atlas_schaefer = datasets.fetch_atlas_schaefer_2018(n_rois=400, yeo_networks=17, resolution_mm=1, data_dir=None, base_url=None, resume=True, verbose=1)
+atlas_schaefer.labels = np.insert(atlas_schaefer.labels, 0, 'Background')
+print(atlas_schaefer)
+
+atlas_schaefer.maps
+
+# Location of Schaefer parcellation atlas
+sch_yeo_atlas_file = atlas_schaefer.maps
+
+# Visualize parcellation atlas
+plotting.plot_roi(sch_yeo_atlas_file, draw_cross=False, annotate=False);
+
+#Set labels
+labels = atlas_schaefer.labels[0:]
+
+#Set our masker
+from nilearn.input_data import NiftiLabelsMasker
+masker = NiftiLabelsMasker(labels_img=atlas_schaefer.maps, standardize=True, verbose=1, memory="nilearn_cache", memory_level=2) 
+
+#Now, let's get our time-series data per ROI
+
+time_series_schaefer = list()
+for i in range(len(rest_files)):
+    index = masker.fit_transform(rest_files[i], confounds = confounds_nilearn_full[i])
+    time_series_schaefer.append(np.array(index))
+    print("Now completed: " + " participant" + str(i))#Needed to place it as the 0th index for each j because of the way that nilearn works for this selection process
+
+len(time_series_schaefer)
+time_series_schaefer[0] #To check that we have values
+
+#Now, let's make our connectivity matrix
+from nilearn.connectome import ConnectivityMeasure
+correlation_measure = ConnectivityMeasure(kind='correlation')
+
+correlation_matrix = list()
+for i in range(len(time_series_schaefer)):
+    correlation_matrix.append(correlation_measure.fit_transform([time_series_schaefer[i]])[0])
+
+for i in range(len(time_series_schaefer)):
+    np.fill_diagonal(correlation_matrix[i], 0)
+
+#Now, let's get this into the proper format
+
+from nilearn.connectome import sym_matrix_to_vec
+
+array = []
+for i in range(len(time_series_schaefer)):
+    array.append(sym_matrix_to_vec(correlation_matrix[i]))
+    
+full_array = np.array(array)
+
+np.shape(full_array) #Now we're talking! Double check that the number of rows is equal to the participants that you have. The number of columns should now be in the tens of thousands
+#This is our UN-standardized corr matrix
+main_df_original = pd.DataFrame(full_array)
+
+
+#Let's save it to avoid any issues
+main_df_original.to_csv('/Users/alexander_bailey/Sharp_Lab/Data/Temp/NEUR608_Main_DF_Original_2.csv', compression={'method': 'gzip', 'compresslevel': 1, 'mtime': 1}, index = False)
+
+data_frame_PLS_fMRI = pd.read_csv('/Users/alexander_bailey/Sharp_Lab/Data/Temp/NEUR608_Main_DF_Original_2.csv', compression= 'gzip')
+
+#Let's edit our labels
+corrected_labels = labels[1:]
+np.shape(corrected_labels)
+corrected_labels
+
+new_corrected_labels = np.array(corrected_labels, dtype = '<U45')
+new_corrected_labels = np.char.replace(new_corrected_labels, '17Networks_LH_', 'LH_')
+new_corrected_labels = np.char.replace(new_corrected_labels, '17Networks_RH_', 'RH_')
+
+#Now, let's make some new labels (which we can use to show the interaction between ROIs)
+
+names_dataframes = np.array(new_corrected_labels)
+
+labels_new = []
+
+for i in range(len(names_dataframes)):
+    for j in range(len(names_dataframes)):
+        labels_new.append(str(names_dataframes[i]) + ' by ' + str(names_dataframes[j]))
+
+labels_new_array = np.array(labels_new) #let's now try to get this back into an array for some easier data wrangling
+
+reshaped_thing = labels_new_array.reshape(400,400)
+
+reshaped_labels_df = pd.DataFrame(reshaped_thing) 
+reshaped_labels_df #Now we have our labels, but we only need HALF the triangle
+
+work_around = pd.DataFrame(np.triu(reshaped_labels_df)) #Let'd do just that
+names_almost = work_around.to_numpy().flatten()
+names_perfected = names_almost[names_almost != 0] #This will now reflect ONLY those indices that we have for our rsfMRI Func. Connectivity matrix
+names_perfected = np.array(names_perfected, dtype = '<U120') #To make sure that we have all the names
+
+#Let's now add our labels
+data_frame_PLS_fMRI.columns = names_perfected
+
+#Let's save it again!
+main_df_original.to_csv('/Users/alexander_bailey/Sharp_Lab/Data/Temp/NEUR608_Main_DF_Proper_Labels.csv', compression={'method': 'gzip', 'compresslevel': 1, 'mtime': 1}, index = False)
+
+#Now, let's standardize our dataframe 
+
+#Two ways of doing so
+#Method 1
+
+import scipy 
+from scipy import stats
+
+main_df_original_df_standardized = stats.zscore(data_frame_PLS_fMRI)
+main_df_original_df_standardized = main_df_original_df_standardized.fillna(0)
+
+#Method 2
+from sklearn.preprocessing import StandardScaler
+scaler = StandardScaler()
+
+main_df_original_df_standardized_2 = scaler.fit_transform(data_frame_PLS_fMRI)
+main_df_original_df_standardized_2 = scaler.fit_transform(data_frame_PLS_fMRI)
+scikit_learn_standardized = pd.DataFrame(main_df_original_df_standardized_2)
+scikit_learn_standardized.columns = names_perfected
+
+#Now we save again!
+main_df_original_df_standardized.to_csv('/Users/alexander_bailey/Sharp_Lab/Data/Temp/NEUR608_Main_DF_Proper_Labels_Standardized.csv', compression={'method': 'gzip', 'compresslevel': 1, 'mtime': 1}, index=False)
+
+## Now It's Time FOR PLS Analysis!!! (PLS-Behavioural)
+
+#Step 1: Import R dataframe with complete demographics and cognitive performance (with all tasks standardized!) - check
+#Note that this will become our Y matrix in the PLS formula R = Y'X == U*S*V'
+
+data_frame_neuropsych_main_variables = pd.read_csv("/Users/alexander_bailey/Sharp_Lab/Data/Temp/NEUR608_2022_Standardized_Original_Sample_Variables.csv")
+data_frame_neuropsych_main_composites = pd.read_csv("/Users/alexander_bailey/Sharp_Lab/Data/Temp/NEUR608_2022_Standardized_Original_Sample_Composites.csv")
+data_frame_neuropsych_Mice = pd.read_csv("/Users/alexander_bailey/Sharp_Lab/Data/Temp/NEUR608_2022_UnStandardized_Original_Sample_Composites.csv") #I was curious and used the mice method of data imputation to see how this would affect the results (only applied once for variables). 
+#Please note that this particular matrix is NOT standardized, but it doesn't need to be as the PLS function/library that we use standardizes everything for us (thank you Dr. Misic and Dr. Markello!)
+
+#Step 2: Ensure that we have a standardized X matrix (this will be our FC connections)
+#This should be equal to our time series data FOR ALL PARTICIPANTS! 
+#Note that we also want to standardize this - check out to see if our toolbox (see Step 3) - does this
+
+X_matrix = main_df_original_df_standardized #X_matrix is actually the corr plot that we just made
+Y_matrix = data_frame_neuropsych_Mice #This will be our selected behavioural scores. Then we just apply our function! And then that should do it!
+
+Y_matrix_good_use =  Y_matrix.iloc[:, 1:(len(Y_matrix)+1)] #This is to get ONLY those columns that we need (no IDs!)
+
+#Say that we wanted to add IDs to subset (do not need to use this code, but I played around with it earlier)
+
+Y_matrix_good_test = Y_matrix_good_use.dropna()
+
+X_matrix.insert(loc = 0,
+          column = 'IDs',
+          value = sub_index[0:])
+          
+ID_array_key = np.array(Y_matrix_good_test['ID'])
+
+X_matrix_reduced = X_matrix[X_matrix['IDs'].isin(ID_array_key)]
+
+X_matrix_corrected = X_matrix_reduced.drop('IDs', axis=1)
+
+#BACK TO CODE
+X_matrix_PLS = X_matrix_corrected.loc[:, (X_matrix_PLS != 0).any(axis=0)]
+
+X_matrix_PLS.shape
+
+##Step 3: Load the PLS function that we have from our cool toolbox!
+import pyls as pyls
+from pyls import behavioral_pls
+
+help(behavioral_pls) #Just to read more about our function
+
+#behavioral_pls(X, Y, groups=groups, n_cond=n_cond, n_boot = 5000, ci = 95, n_perm = 5000, seed = 20222110)
+# BORIS/Bratislav/Neur 608 Tip: Maximal var can be acheived in PLS by NOT USING GROUPS. We can look at groups afterwards for a post-hoc
+
+X_matrix_PLS = X_matrix_corrected
+
+#Now, let's run it!
+
+PD_MCI_PLS = behavioral_pls(X_matrix_PLS, Y_matrix_good_use,groups=None, n_cond=1, n_boot = 5000, ci = 95, n_perm = 5000, seed = 20222110)
+#Can't have NAs! AND it wants the matrices to be unstandardized to work.
+#IF YOU DIVIDE ZERO BY ZERO YOU GET AN NA! SO!!!! ALEX! DROP NAs from X matrix!
+
+#Note that this take several hours to process! To avoid having to re-run things (or after running, catch yourself from making a mistake to affect the results), let's save our file on our computer
+
+pyls.save_results('/Users/alexander_bailey/Sharp_Lab/Data/Temp', PD_MCI_PLS) #Notice format is "location", then name of file (different from in R!)
+
+PD_MCI_PLS = pyls.load_results('/Users/alexander_bailey/Sharp_Lab/Data/Temp')
+
+print(PD_MCI_PLS) #This will tell you what this new object contains
+
+#How many latent variables do we need?
+
+#Method A:
+plt.plot(PD_MCI_PLS['varexp'])
+plt.axhline(y = 1/(len(PD_MCI_PLS['varexp']), color = 'g') #I just like green for lines
+
+#Method B (get cummulative summary of variance explained):
+cum_var_data = []
+for i in range(len(PD_MCI_PLS['varexp'])):
+    if i == 0:
+        cum_var_data.append(PD_MCI_PLS['varexp'][i])
+    else:
+        cum_var_data.append(PD_MCI_PLS['varexp'][i] + cum_data[i-1])
+
+#Let's give a quick look
+plt.plot(np.arange(1, 21), cum_data)
+plt.axhline(y = .70, color = 'g')
+
+#This should also agree with the previous interpretation
+
+#Post-Hoc Code Coming Up!
+      
+                           
+                      
+
