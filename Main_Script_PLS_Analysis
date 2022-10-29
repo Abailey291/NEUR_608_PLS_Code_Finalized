@@ -201,13 +201,13 @@ data_frame_neuropsych_Mice = pd.read_csv("/Users/alexander_bailey/Sharp_Lab/Data
 #Note that we also want to standardize this - check out to see if our toolbox (see Step 3) - does this
 
 X_matrix = main_df_original_df_standardized #X_matrix is actually the corr plot that we just made
-Y_matrix = data_frame_neuropsych_Mice #This will be our selected behavioural scores. Then we just apply our function! And then that should do it!
+Y_matrix = data_frame_neuropsych_main_variables
 
-Y_matrix_good_use =  Y_matrix.iloc[:, 1:(len(Y_matrix)+1)] #This is to get ONLY those columns that we need (no IDs!)
+Y_matrix_good_use =  Y_matrix.iloc[:, 2:(len(Y_matrix)+1)] #This is to get ONLY those columns that we need (no IDs or Groups!)
 
 #Say that we wanted to add IDs to subset (do not need to use this code, but I played around with it earlier)
 
-Y_matrix_good_test = Y_matrix_good_use.dropna()
+Y_matrix_good_test = Y_matrix_good_use.dropna() #There shouldn't be any, due to data imputation with mice
 
 X_matrix.insert(loc = 0,
           column = 'IDs',
@@ -243,13 +243,13 @@ PD_MCI_PLS = behavioral_pls(X_matrix_PLS, Y_matrix_good_use,groups=None, n_cond=
 
 #Note that this take several hours to process! To avoid having to re-run things (or after running, catch yourself from making a mistake to affect the results), let's save our file on our computer
 
-pyls.save_results('/Users/alexander_bailey/Sharp_Lab/Data/Temp', PD_MCI_PLS) #Notice format is "location", then name of file (different from in R!)
+pyls.save_results('/Users/alexander_bailey/Data/Temp', PD_MCI_PLS) #Notice format is "location", then name of file (different from in R!)
 
-PD_MCI_PLS = pyls.load_results('/Users/alexander_bailey/Sharp_Lab/Data/Temp')
+PD_MCI_PLS = pyls.load_results('/Users/alexander_bailey/Data/Temp')
 
 print(PD_MCI_PLS) #This will tell you what this new object contains
 
-#How many latent variables do we need?
+#How many latent variables do we need? Let's graph it out!
 
 #Method A:
 plt.plot(PD_MCI_PLS['varexp'])
@@ -262,16 +262,37 @@ for i in range(len(PD_MCI_PLS['varexp'])):
         cum_var_data.append(PD_MCI_PLS['varexp'][i])
     else:
         cum_var_data.append(PD_MCI_PLS['varexp'][i] + cum_data[i-1])
-
 #Let's give a quick look
 plt.plot(np.arange(1, 21), cum_data)
 plt.axhline(y = .70, color = 'g')
 
 #This should also agree with the previous interpretation
 
-#Post-Hoc Code Coming Up!
-      
-#Making a Correlation Plot (Visualize per participant)
+#Method C (in R):
+
+Scree_plot<- read_csv("/Users/alexander_bailey/NEUR608/Data/Temp/Scree_plot_data.csv")
+Scree_plot_data<- Scree_plot$`0`
+#Now, graph it! 
+ggplot(Scree_plot, mapping = aes(c(1:21), Scree_plot_data)) + 
+  geom_point() + geom_line() +
+  xlab("Latent Variable") + 
+  ylab("Variance Explained") +
+  ggtitle("A) Scree Plot for PLS") +
+  ylim(0, 0.30) + geom_hline(yintercept=1/21, linetype="dashed", color = "red")
+
+Cummulative_Var<- read_csv("/Users/alexander_bailey/NEUR608/Data/Temp/Cummulative_Variance_data.csv")
+vector_var<-c(Cummulative_Var$`0`)
+#Now, graph our second plot! 
+ggplot(Cummulative_Var, mapping = aes(c(1:21), vector_var)) + 
+  geom_point() + geom_line() +
+  xlab("Latent Variable") + 
+  ylab("Variance Explained") +
+  ggtitle("B) Cummulative Variance Plot for PLS") +
+  ylim(0,1) + geom_hline(yintercept=.70, linetype="dashed", color = "red")
+  
+#END OF R Analyses (for now!)
+
+#Note: Making a Correlation Plot (Visualize per participant)
 
 #Full plot
 plotting.plot_matrix(correlation_matrix[0], figure=(10, 8), labels=labels[1:],
@@ -282,5 +303,86 @@ plotting.plot_matrix(correlation_matrix[0], figure=(10, 8), labels=labels[1:],
 #Triangle
 plotting.plot_matrix(correlation_matrix[0], figure=(10, 8), labels=labels[1:],
                      vmax=1, vmin=-1, reorder=True, tri='diag', auto_fit = True) 
-                      
+                     
+#Post-Hoc Code Coming Up!
+
+#After doing PLS and gotten the number of LCs, checked for permutation significance:
+
+PD_MCI_PLS['permres']['pvals']
+PLS_p_values = PD_MCI_PLS['permres']['pvals']
+PLS_p_values_for_correction = PLS_p_values[0:6] #Based on choosing 5 LCs
+
+import statsmodels.stats.multitest
+from statsmodels.stats.multitest import fdrcorrection
+fdrcorrection(PLS_p_values_for_correction, alpha=0.05, method='indep', is_sorted=False)
+
+#Generally, to make graphs, used the following code:
+
+L_x_good = pd.DataFrame(PD_MCI_PLS['x_scores'])
+L_y_good = pd.DataFrame(PD_MCI_PLS['y_scores'])
+
+#For Correlation between composites (per LC):
+
+composite_i = sns.scatterplot(L_x_good[i], L_y_good[i], hue = cues) 
+#Now, we've got it! 
+
+#Note i = LC
+composite_i.set(xlabel ="RSFC Composite Scores (Lxi)", ylabel = "Behavioural Composite Scores (Lyi)", title ='Correlation Between Composite Scores for LCi')
+composite_i.set_xlim(-a, a) #Where a = maximum threshold to ensure for visibility of results
+
+scipy.stats.pearsonr(L_x_good[i], L_y_good[i])
+
+#Next, let's make graphs
+import seaborn as sns
+%matplotlib inline
+
+cues = Y_matrix["Groups"]
+composite_i = sns.scatterplot(L_x_good[0], L_y_good[0], hue = cues) #We got it! Almost!
+#Now, we've got it! 
+
+composite_i.set(xlabel ="RSFC Composite Scores (Lxi)", ylabel = "Behavioural Composite Scores (Lyi)", title ='Correlation Between Composite Scores for LCi')
+composite_i.set_xlim(-b, b) #Where b = maximum threshold to ensure for visibility of results
+scipy.stats.pearsonr(L_x_good[0], L_y_good[0])
+
+#Next, we make our bar graphs using Seaborn and Matplotlib
+import seaborn as sns
+%matplotlib inline
+
+data_frame_RSCF_i = pd.DataFrame(
+{'RSFC Composite Scores':L_x_good[i], 'Groups':cues})
+
+data_frame_Behavioural_i = pd.DataFrame(
+{'Behavioural Composite Scores':L_y_good[i], 'Groups':cues})
+
+a = sns.barplot(data = data_frame, x = "Groups", y = "XYZ Composite Scores") # data_frame = data_frame_RSCF_i OR data_frame_Behavioural_i ; XYZ == either RSFC Composite Scores OR Behavioural Composite Scores
+a.set(title ='Group Differences Between RSFC Composite Scores for LCi')
+
+#Next, we look at statisitcal sign. 
+groupi_HC_RSFC = np.array(data_frame_RSCF_i.where(data_frame.Groups == "HC").dropna()['RSFC Composite Scores'])
+groupi_PD_MCI_RSFC = np.array(data_frame_RSCF_i.where(data_frame_2_comp_2.Groups == "PD_MCI").dropna()['RSFC Composite Scores'])
+groupi_PD_NC_RSFC = np.array(data_frame_RSCF_i.where(data_frame_2_comp_2.Groups == "PD_NC").dropna()['RSFC Composite Scores'])
+
+pingouin.ttest(group1_HC_RSFC, group1_PD_MCI_RSFC)
+pingouin.ttest(group1_HC_RSFC, group2_PD_NC)
+pingouin.ttest(group1_PD_NC_RSFC, group1_PD_MCI_RSFC)
+
+#Then, select p-values from the above pingouin output
+p_values_rest_i = np.array([p_val1, p_val2, p_val3])
+
+fdrcorrection(p_values_rest_i, alpha=0.05, method='indep', is_sorted=False)
+
+#Then do the same thing for behaviour
+
+groupi_HC_beh = np.array(data_frame_Behavioural_i.where(data_frame_Behavioural_i.Groups == "HC").dropna()['Behavioural Composite Scores'])
+groupi_PD_MCI_beh = np.array(data_frame_Behavioural_i.where(data_frame_Behavioural_i.Groups == "PD_MCI").dropna()['Behavioural Composite Scores'])
+groupi_PD_NC_beh = np.array(data_frame_Behavioural_i.where(data_frame_Behavioural_i.Groups == "PD_NC").dropna()['Behavioural Composite Scores'])
+
+pingouin.ttest(groupi_HC_beh, groupi_PD_MCI_beh)
+pingouin.ttest(groupi_HC_beh, groupi_PD_NC_beh)
+pingouin.ttest(groupi_PD_NC_beh, groupi_PD_MCI_beh)
+
+#Then, select p-values from the above pingouin output
+p_values_rest_i_behav = np.array([p_val_test_beh_1, p_val_test_beh_2, p_val_test_beh_3])
+
+fdrcorrection(p_values_rest_i_behav, alpha=0.05, method='indep', is_sorted=False)
 
