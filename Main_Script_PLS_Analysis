@@ -255,7 +255,7 @@ print(PD_MCI_PLS) #This will tell you what this new object contains
 plt.plot(PD_MCI_PLS['varexp'])
 plt.axhline(y = 1/(len(PD_MCI_PLS['varexp']), color = 'g') #I just like green for lines
 
-#Method B (get cummulative summary of variance explained):
+#Method B (get cumulative summary of variance explained):
 cum_var_data = []
 for i in range(len(PD_MCI_PLS['varexp'])):
     if i == 0:
@@ -280,14 +280,14 @@ ggplot(Scree_plot, mapping = aes(c(1:21), Scree_plot_data)) +
   ggtitle("A) Scree Plot for PLS") +
   ylim(0, 0.30) + geom_hline(yintercept=1/21, linetype="dashed", color = "red")
 
-Cummulative_Var<- read_csv("/Users/alexander_bailey/NEUR608/Data/Temp/Cummulative_Variance_data.csv")
-vector_var<-c(Cummulative_Var$`0`)
+Cumulative_Var<- read_csv("/Users/alexander_bailey/NEUR608/Data/Temp/Cumulative_Variance_data.csv")
+vector_var<-c(Cumulative_Var$`0`)
 #Now, graph our second plot! 
-ggplot(Cummulative_Var, mapping = aes(c(1:21), vector_var)) + 
+ggplot(Cumulative_Var, mapping = aes(c(1:21), vector_var)) + 
   geom_point() + geom_line() +
   xlab("Latent Variable") + 
   ylab("Variance Explained") +
-  ggtitle("B) Cummulative Variance Plot for PLS") +
+  ggtitle("B) Cumulative Variance Plot for PLS") +
   ylim(0,1) + geom_hline(yintercept=.70, linetype="dashed", color = "red")
   
 #END OF R Analyses (for now!)
