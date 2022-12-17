@@ -188,15 +188,82 @@ main_df_original_df_standardized.to_csv('/Users/alexander_bailey/Sharp_Lab/Data/
 
 ## Now It's Time FOR PLS Analysis!!! (PLS-Behavioural)
 
-#Step 1: Import R dataframe with complete demographics and cognitive performance (with all tasks standardized!) - check
+Initial Step: Make certain that Y Matrix is prepared
+Because PLS does not function well with NAs/NANs, we must use imputation
+
+Given that we have a small dataset (n), however, we can use the k nearest neighbours imputation method from VIM; the following code is done in R
+
+library(tidyverse)
+library(VIM)
+
+Main_to_add<-read_csv("/Users/alexander_bailey/Sharp_Lab/Data/Temp/NEUR608_2022_UnStandardized_Main_Sample_Variables_to_combine")
+
+Main_to_add$RCFT_Delayed
+
+Indep_to_add<-read_csv("/Users/alexander_bailey/Sharp_Lab/Data/Temp/NEUR608_2022_UnStandardized_Independent_Sample_Variables_to_combine")
+
+Main_to_impute<-Main_to_add %>% bind_rows(Indep_to_add) %>% group_by(New_Groups) %>% arrange(desc(MoCA), .by_group = TRUE) %>% ungroup() 
+
+Main_to_impute_group<-Main_to_add %>% bind_rows(Indep_to_add) %>% group_by(New_Groups) %>% arrange(desc(MoCA), .by_group = TRUE)
+
+#But what if we still group?
+set.seed(20222210)
+total_KNN_grouped<- kNN(Main_to_impute_group, imp_var = FALSE)
+total_KNN_grouped #So does the same thing
+
+total_KNN_grouped$RCFT_Delayed
+total_KNN$RCFT_Delayed
+
+Main_to_impute
+
+set.seed(20222210)
+total_KNN<- kNN(Main_to_impute, imp_var = FALSE)
+total_KNN
+
+Main_Ids<- read_csv("/Users/alexander_bailey/Sharp_Lab/Data/Temp/NEUR608_2022_ID_for_seperation.csv") %>% rename(ID = `c(main_test$ID)`)
+
+main_indermediate<- tibble(Main_to_add$ID) %>% rename(ID = `Main_to_add$ID`)
+main_indermediate %>% left_join(total_KNN)
+
+main_sample<- main_indermediate %>% left_join(total_KNN)
+main_sample #Now we're on our way! 
+
+independent_intermediate<- tibble(Indep_to_add$ID) %>% rename(ID = `Indep_to_add$ID`)
+independent_sample <- independent_intermediate %>% left_join(total_KNN)
+independent_sample #Now, we have our completed sample! 
+
+temp_backup_KNN_2_standardized<- scale(temp_backup_KNN_2, center = TRUE, scale = TRUE)
+temp_backup_KNN_2_standardized<-as.tibble(temp_backup_KNN_2_standardized)
+temp_backup_KNN_2_standardized
+
+main_sample_good_to_standardize<- main_sample %>%  select(3:length(main_sample))
+indep_sample_good_to_standardize<- independent_sample %>%  select(3:length(independent_sample))
+
+Main_KNN_2_standardized<- scale(main_sample_good_to_standardize, center = TRUE, scale = TRUE)
+Main_KNN_2_standardized<-as.tibble(Main_KNN_2_standardized)
+Main_KNN_2_standardized
+
+Indep_KNN_2_standardized<- scale(indep_sample_good_to_standardize, center = TRUE, scale = TRUE)
+Indep_KNN_2_standardized<-as.tibble(Indep_KNN_2_standardized)
+Indep_KNN_2_standardized
+
+write_csv(main_sample_good_to_standardize, "/Users/alexander_bailey/Sharp_Lab/Data/Temp/NEUR608_2022_UnStandardized_Main_Sample_Variables_Dec_7_TO_USE.csv") #This is corrected standardized data (more precise for the purposes of PLS-B) - AND IMPORTANTLY! CORRECT FOR ALEX for PLS mappings!
+
+write_csv(indep_sample_good_to_standardize, "/Users/alexander_bailey/Sharp_Lab/Data/Temp/NEUR608_2022_UnStandardized_Independent_Sample_Variables_Dec_7_TO_USE.csv") #This is corrected standardized data (more precise for the purposes of PLS-B) - AND IMPORTANTLY! CORRECT FOR ALEX for PLS mappings!
+
+write_csv(Main_KNN_2_standardized, "/Users/alexander_bailey/Sharp_Lab/Data/Temp/NEUR608_2022_UnStandardized_Main_Sample_Variables_Dec_7_KNN_standardized_TO_USE.csv") #This is corrected standardized data (more precise for the purposes of PLS-B) - AND IMPORTANTLY! CORRECT FOR ALEX!
+
+write_csv(Indep_KNN_2_standardized, "/Users/alexander_bailey/Sharp_Lab/Data/Temp/NEUR608_2022_UnStandardized_Independent_Sample_Variables_Dec_7_KNN_standardized_TO_USE.csv") #This is corrected standardized data (more precise for the purposes of PLS-B) - AND IMPORTANTLY! CORRECT FOR ALEX!
+
+
+#Step 1 PLS: Import R dataframe with complete demographics and cognitive performance (with all tasks standardized!) - check
 #Note that this will become our Y matrix in the PLS formula R = Y'X == U*S*V'
 
 data_frame_neuropsych_main_variables = pd.read_csv("/Users/alexander_bailey/Sharp_Lab/Data/Temp/NEUR608_2022_Standardized_Original_Sample_Variables.csv")
-data_frame_neuropsych_main_composites = pd.read_csv("/Users/alexander_bailey/Sharp_Lab/Data/Temp/NEUR608_2022_Standardized_Original_Sample_Composites.csv")
-data_frame_neuropsych_Mice = pd.read_csv("/Users/alexander_bailey/Sharp_Lab/Data/Temp/NEUR608_2022_UnStandardized_Original_Sample_Composites.csv") #I was curious and used the mice method of data imputation to see how this would affect the results (only applied once for variables). 
-#Please note that this particular matrix is NOT standardized, but it doesn't need to be as the PLS function/library that we use standardizes everything for us (thank you Dr. Misic and Dr. Markello!)
+data_frame_neuropsych_main_variables = pd.read_csv(""/Users/alexander_bailey/Sharp_Lab/Data/Temp/NEUR608_2022_UnStandardized_Main_Sample_Variables_Dec_7_KNN_standardized_TO_USE.csv")
+#Please note that this particular matrix IS standardized, to help out pyls (thank you Dr. Misic and Dr. Markello!)
 
-#Step 2: Ensure that we have a standardized X matrix (this will be our FC connections)
+#Step 2 PLS: Ensure that we have a standardized X matrix (this will be our FC connections)
 #This should be equal to our time series data FOR ALL PARTICIPANTS! 
 #Note that we also want to standardize this - check out to see if our toolbox (see Step 3) - does this
 
