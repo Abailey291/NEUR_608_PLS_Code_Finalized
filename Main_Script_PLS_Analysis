@@ -386,3 +386,1422 @@ p_values_rest_i_behav = np.array([p_val_test_beh_1, p_val_test_beh_2, p_val_test
 
 fdrcorrection(p_values_rest_i_behav, alpha=0.05, method='indep', is_sorted=False)
 
+
+#####R Code for Transforming X Matrix Data -------------------------------------------------------------------
+
+#Part 1: PLS for Main Dataset
+```{r PLS}
+#Template
+#read_csv("/Users/alexander_bailey/Sharp_Lab/Data/Temp/Cleaned_Df_Data_Wrangling_August_2022/my_data_August_10_2022.csv")
+
+#1) First, let's load our new and improved Lx
+PLS_matrix_loadings<- read_csv("/Users/alexander_bailey/NEUR608/Data/Temp/NEUR608_PLS_loadings.csv")
+PLS_matrix_loadings
+#L_x_composite_full_initial<- read_csv("/Users/alexander_bailey/NEUR608/Data/Temp/NEUR608_LV_x_df.csv")
+
+L_x_composite_full_initial<- read_csv('/Users/alexander_bailey/NEUR608/Data/Temp/NEUR608_LV_x_df_Main_Dec_7_2022_To_USE.csv')
+L_x_composite_full_initial #This is what we require; EDITED AND CORRECT! 
+
+#Need to verify that L_x is calculated correctly - INDEED IT IS! So don't need this
+L_x_composite_edited<- read_csv('/Users/alexander_bailey/NEUR608/Data/Temp/NEUR608_LV_x_df_edited.csv')
+L_x_composite_edited
+
+#2) Then let's load X matrix
+X_matrix_Complete<- read_csv('/Users/alexander_bailey/NEUR608/Data/Temp/NEUR608_Main_DF_Proper_Labels.csv')
+
+X_matrix<- read_csv('/Users/alexander_bailey/NEUR608/Data/Temp/NEUR608_X_Matrix_df_Main_Dec_7_2022_To_USE.csv') #Add original X Matrix
+dim(X_matrix)
+
+X_matrix_Bootstrapped_Std_Error<- read_csv("/Users/alexander_bailey/NEUR608/Data/Temp/NEUR608_Bootstrapped_X_Std_Err.csv")
+#This is useful but thankfully workable given that we have the standard errors from the edited weights! 
+X_matrix_Bootstrapped_Std_Error #R can handle big data! Just needs to be in the proper save format! Thank you R!!
+
+
+#X_matrix_good<- X_matrix %>% select(2:length(X_matrix))
+#dim(X_matrix_good)
+```
+
+#Setting up Correlation and Bootstrapped SDs
+```{r PLS}
+X_matrix_good <- X_matrix
+
+Latent_Variables_DF<- L_x_composite_full_initial %>% select(1,2,3,4, 5) %>% rename(LxC1 = `0`, LxC2 = `1`, LxC3 = `2`, LxC4 = `3`, LxC5 = `4`)
+Latent_Variables_DF
+
+First_latent_variable<- L_x_composite_full_initial$`0`
+Second_latent_variable<-L_x_composite_full_initial$`1`
+Third_latent_variable<-L_x_composite_full_initial$`2`
+Forth_latent_variable<-L_x_composite_full_initial$`3`
+
+
+length(First_latent_variable)
+
+X_matrix_good<- X_matrix_good %>% na_if(0)
+X_matrix_good
+
+
+#X_matrix_good_Prepare_for_Corr <-X_matrix_good[ , colSums(is.na(X_matrix_good))==0] #No longer need to use this code as I made the switch in Python (faster, less worrisome)
+X_matrix_good_Prepare_for_Corr <- X_matrix_good
+dim(X_matrix_good_Prepare_for_Corr)
+
+X_matrix_good_Prepare_for_Corr_Stnd<- read_csv("/Users/alexander_bailey/NEUR608/Data/Temp/NEUR608_Main_DF_Proper_Labels_Standardized_Nov_21_2022.csv")
+X_matrix_good_Prepare_for_Corr_Stnd
+```
+
+#PLS Correlation between X and LX
+```{r PLS Script}
+#3) Now, let's make a correlation (this will be used for thresholded and unthresholded info)
+
+X_matrix_PLS_Corr<- X_matrix_good_Prepare_for_Corr_Stnd %>% summarize(across(.cols = everything(), ~cor(.x, First_latent_variable, method = 'pearson'))) #This is to actually do the correlation - I didn't see it, but I do now! 
+
+#X_matrix_PLS_Corr_Unstandardized_1 <-X_matrix_good_Prepare_for_Corr %>% summarize(across(.cols = everything(), ~cor(.x, Latent_Variables_DF$LxC1, method = 'pearson')))
+
+X_matrix_PLS_Corr_Unstandardized_1 <-X_matrix_good %>% summarize(across(.cols = everything(), ~cor(.x, Latent_Variables_DF$LxC1, method = 'pearson'))) #TO USE
+
+X_matrix_PLS_Corr_Unstandardized_1 #This is the corrected dataframe after doing the correlation
+
+X_matrix_PLS_Corr_Unstandardized_1
+write_csv(X_matrix_PLS_Corr_Unstandardized_1, "/Users/alexander_bailey/NEUR608/Data/Temp/NEUR608_Main_DF_Proper_Labels_Dec_7_2022_Correlations_Original_DF_Unstandardized_LxC1_TO_USE.csv")
+
+#write_csv(X_matrix_PLS_Corr_Unstandardized_1, "/Users/alexander_bailey/NEUR608/Data/Temp/NEUR608_Main_DF_Proper_Labels_Nov_24_2022_Correlations_Original_DF_Unstandardized_LxC1.csv")
+
+X_matrix_PLS_Corr_Unstandardized_2 <-X_matrix_good_Prepare_for_Corr %>% summarize(across(.cols = everything(), ~cor(.x, Latent_Variables_DF$LxC2, method = 'pearson')))
+
+X_matrix_PLS_Corr_Unstandardized_2
+write_csv(X_matrix_PLS_Corr_Unstandardized_2, "/Users/alexander_bailey/NEUR608/Data/Temp/NEUR608_Main_DF_Proper_Labels_Dec_7_2022_Correlations_Original_DF_Unstandardized_LxC2_To_USE.csv")
+
+#write_csv(X_matrix_PLS_Corr_Unstandardized_2, "/Users/alexander_bailey/NEUR608/Data/Temp/NEUR608_Main_DF_Proper_Labels_Nov_24_2022_Correlations_Original_DF_Unstandardized_LxC2.csv")
+
+X_matrix_PLS_Corr_Unstandardized_3 <-X_matrix_good_Prepare_for_Corr %>% summarize(across(.cols = everything(), ~cor(.x, Latent_Variables_DF$LxC3, method = 'pearson')))
+
+X_matrix_PLS_Corr_Unstandardized_3
+
+write_csv(X_matrix_PLS_Corr_Unstandardized_3, "/Users/alexander_bailey/NEUR608/Data/Temp/NEUR608_Main_DF_Proper_Labels_Dec_7_2022_Correlations_Original_DF_Unstandardized_LxC3_To_Use.csv")
+
+
+#write_csv(X_matrix_PLS_Corr_Unstandardized_3, "/Users/alexander_bailey/NEUR608/Data/Temp/NEUR608_Main_DF_Proper_Labels_Nov_24_2022_Correlations_Original_DF_Unstandardized_LxC3.csv")
+
+X_matrix_PLS_Corr_Unstandardized_4 <-X_matrix_good_Prepare_for_Corr %>% summarize(across(.cols = everything(), ~cor(.x, Latent_Variables_DF$LxC4, method = 'pearson')))
+
+X_matrix_PLS_Corr_Unstandardized_4
+
+write_csv(X_matrix_PLS_Corr_Unstandardized_4, "/Users/alexander_bailey/NEUR608/Data/Temp/NEUR608_Main_DF_Proper_Labels_Dec_7_2022_Correlations_Original_DF_Unstandardized_LxC4_To_USE.csv")
+
+#write_csv(X_matrix_PLS_Corr_Unstandardized_4, "/Users/alexander_bailey/NEUR608/Data/Temp/NEUR608_Main_DF_Proper_Labels_Nov_24_2022_Correlations_Original_DF_Unstandardized_LxC4.csv")
+
+X_matrix_PLS_Corr_Unstandardized_5 <-X_matrix_good_Prepare_for_Corr %>% summarize(across(.cols = everything(), ~cor(.x, Latent_Variables_DF$LxC5, method = 'pearson')))
+
+X_matrix_PLS_Corr_Unstandardized_5
+
+write_csv(X_matrix_PLS_Corr_Unstandardized_5, "/Users/alexander_bailey/NEUR608/Data/Temp/NEUR608_Main_DF_Proper_Labels_Dec_7_2022_Correlations_Original_DF_Unstandardized_LxC5_To_USE.csv")
+#This will then save our files
+
+
+#And this will work!!!
+
+#write_csv(X_matrix_PLS_Corr, "/Users/alexander_bailey/NEUR608/Data/Temp/NEUR608_Main_DF_Proper_Labels_Standardized_Nov_21_2022_Correlations_Original.csv")
+
+X_matrix_PLS_Corr<- read_csv("/Users/alexander_bailey/NEUR608/Data/Temp/NEUR608_Main_DF_Proper_Labels_Standardized_Nov_21_2022_Correlations_Original.csv") #This is the standardized version. As we'll see not too too useful except for one thing that helps make the data wrangling a bit easier
+```
+
+#Let's Now Get Boostrapping!
+```{r}
+#make this example reproducible; set a seed! 
+
+#load boot library
+library(boot)
+
+#define dataset
+X_matrix_good_Prepare_for_Corr_Stnd_df <- as.data.frame(X_matrix_good_Prepare_for_Corr_Stnd) #Here, I don't think that we need standardized data. 
+
+typeof(X_matrix_good_Prepare_for_Corr_Stnd_df)
+
+test<- X_matrix_good_Prepare_for_Corr_Stnd_df$`LH_VisCent_ExStr_1 by LH_VisCent_ExStr_2`
+
+mean(replicate(500, sd(sample(test_value, replace=T))))
+
+#Make a bootstap function
+main_bootstrapped_standard_dev <- function(test_value) {
+  temp_C <- mean(replicate(1000, sd(sample(test_value, replace=T))))
+  return(temp_C)
+}
+
+set.seed(12345)
+#apply(X_matrix_good_Prepare_for_Corr_Stnd, 2, main_bootstrapped_standard_dev) #THIS WORKS! 
+
+set.seed(12345) #But this helps to put everything in a slightly more interpretable way
+X_matrix_good_Prepare_for_Corr_Stnd_Boot_SD <- X_matrix_good_Prepare_for_Corr_Stnd %>% summarise(across(.cols = everything(), ~main_bootstrapped_standard_dev(.x))) #How to get bootstrapping correctly - not actually
+
+X_matrix_good_Prepare_for_Corr_Stnd_Boot_SD
+
+#Test if X is un-standardized
+set.seed(12345) #But this helps to put everything in a slightly more interpretable way
+X_matrix_good_Prepare_for_Corr_Stnd_Boot_SD_Unstandardized <- X_matrix_good_Prepare_for_Corr %>% summarise(across(.cols = everything(), ~main_bootstrapped_standard_dev(.x))) #How to get bootstrapping correctly - USE THIS
+
+
+X_matrix_good_Prepare_for_Corr_Stnd_Boot_SD_Unstandardized
+
+write_csv(X_matrix_good_Prepare_for_Corr_Stnd_Boot_SD_Unstandardized, '/Users/alexander_bailey/NEUR608/Data/Temp/NEUR608_X_matrix_good_Prepare_for_Corr_Stnd_Boot_SD_Dec_7_2022_Unstandardized_To_Use_Boot_1000.csv')
+
+
+write_csv(X_matrix_good_Prepare_for_Corr_Stnd_Boot_SD_Unstandardized, '/Users/alexander_bailey/NEUR608/Data/Temp/NEUR608_X_matrix_good_Prepare_for_Corr_Stnd_Boot_SD_Dec_7_2022_Unstandardized_To_Use.csv')
+
+
+#write_csv(X_matrix_good_Prepare_for_Corr_Stnd_Boot_SD_Unstandardized, '/Users/alexander_bailey/NEUR608/Data/Temp/NEUR608_X_matrix_good_Prepare_for_Corr_Stnd_Boot_SD_Nov_22_2022_Unstandardized.csv')
+
+#write_csv(X_matrix_good_Prepare_for_Corr_Stnd_Boot_SD, '/Users/alexander_bailey/NEUR608/Data/Temp/NEUR608_X_matrix_good_Prepare_for_Corr_Stnd_Boot_SD_Nov_22_2022.csv')
+```
+
+#Code to Transform Vectors into Proper Format for Transformation Back to Matrix - WE NEED TO LOAD THIS BEFORE WE GET TO THE NEXT SECTION!!! Why? Because of the Comparison variable - helps to make things WAY easier! 
+```{r PLS Script}
+X_matrix_PLS_Corr #This provides the data, but now, we need our zeroes again! 
+
+Comparison<- X_matrix_Complete[1, ]
+
+Comparison
+
+Full_Correlation_Original<- bind_rows(Comparison, X_matrix_PLS_Corr)[2,]
+#write_csv(Full_Correlation_Original, "/Users/alexander_bailey/NEUR608/Data/Temp/NEUR608_Full_Correlation_Original_Nov_21_2022.csv")
+
+Main_df_to_adjust<- read_csv("/Users/alexander_bailey/NEUR608/Data/Temp/NEUR608_Full_Correlation_Original_Nov_21_2022.csv") #This provides us with the proper file format that can be changed in Python
+```
+
+Check out Boostrap Differences
+```{r}
+
+#SD_unstandardized<- read_csv('/Users/alexander_bailey/NEUR608/Data/Temp/NEUR608_X_matrix_good_Prepare_for_Corr_Stnd_Boot_SD_Dec_7_2022_Unstandardized_To_Use.csv') Boot 500
+
+SD_unstandardized<- read_csv('/Users/alexander_bailey/NEUR608/Data/Temp/NEUR608_X_matrix_good_Prepare_for_Corr_Stnd_Boot_SD_Dec_7_2022_Unstandardized_To_Use_Boot_1000.csv')
+  
+  #read_csv('/Users/alexander_bailey/NEUR608/Data/Temp/NEUR608_X_matrix_good_Prepare_for_Corr_Stnd_Boot_SD_Nov_22_2022_Unstandardized.csv')
+
+#SD_standardized<- read_csv('/Users/alexander_bailey/NEUR608/Data/Temp/NEUR608_X_matrix_good_Prepare_for_Corr_Stnd_Boot_SD_Nov_22_2022.csv')
+
+SD_unstandardized
+SD_standardized #This is a bit too much variance. Ok! So, going with what I've been doing the whole of today that's providing results that make sense! 
+
+
+#Let's now get our Z-scores
+
+sd_bootstrapped_original_data<- as.numeric(as.vector(SD_unstandardized))
+sd_bootstrapped_original_data
+
+Name_to_Use<- c(names(X_matrix_PLS_Corr_Unstandardized_4))
+Name_to_Use
+
+X_matrix_Lx1<- as.numeric(as.vector(X_matrix_PLS_Corr_Unstandardized_1))
+X_matrix_Lx2<- as.numeric(as.vector(X_matrix_PLS_Corr_Unstandardized_2))
+X_matrix_Lx3<- as.numeric(as.vector(X_matrix_PLS_Corr_Unstandardized_3))
+X_matrix_Lx4<- as.numeric(as.vector(X_matrix_PLS_Corr_Unstandardized_4))
+X_matrix_Lx5<- as.numeric(as.vector(X_matrix_PLS_Corr_Unstandardized_5))
+
+
+length(X_matrix_Lx1)
+length(sd_bootstrapped_original_data)
+
+#Step 5: Make Z-scores
+adjusted_Z_score_original_data_Px1<- c(X_matrix_Lx1/sd_bootstrapped_original_data)
+adjusted_Z_score_original_data_Px2<- c(X_matrix_Lx2/sd_bootstrapped_original_data)
+adjusted_Z_score_original_data_Px3<- c(X_matrix_Lx3/sd_bootstrapped_original_data)
+adjusted_Z_score_original_data_Px4<- c(X_matrix_Lx4/sd_bootstrapped_original_data)
+adjusted_Z_score_original_data_Px5<- c(X_matrix_Lx5/sd_bootstrapped_original_data)
+
+Px1_matrix<-tibble(Name_to_Use, adjusted_Z_score_original_data_Px1)
+Px2_matrix<-tibble(Name_to_Use, adjusted_Z_score_original_data_Px2)
+Px3_matrix<-tibble(Name_to_Use, adjusted_Z_score_original_data_Px3)
+Px4_matrix<-tibble(Name_to_Use, adjusted_Z_score_original_data_Px4)
+Px5_matrix<-tibble(Name_to_Use, adjusted_Z_score_original_data_Px5)
+
+#Now let's get our significance (p) values! 
+Px1_matrix_corrected<- Px1_matrix %>% mutate(p_values = (2*pnorm(Px1_matrix$adjusted_Z_score_original_data_Px1, lower.tail=FALSE)))
+p_val_Px1<- c(Px1_matrix_corrected$p_values)
+FDR_corr_p_val_Px1 <- p.adjust(p_val_Px1, method = "BH")
+FDR_corr_p_val_Px1
+
+Corr_1<- X_matrix_Lx1
+Corr_1
+#X_matrix_Lx1[1]
+
+Px1_matrix_corrected_to_go<- Px1_matrix_corrected %>%  mutate(FDR_p = FDR_corr_p_val_Px1, Corr_1 = X_matrix_Lx1)
+Px1_matrix_corrected_to_go
+
+Lx1_X_DF_Original_Data<- Px1_matrix_corrected_to_go %>% mutate(Corrected_Pearson_R = ifelse(FDR_p < .05, Corr_1, NA)) %>% mutate(Corrected_p_Values = ifelse(FDR_p < .05, FDR_p, NA))
+
+
+write_csv(Lx1_X_DF_Original_Data, '/Users/alexander_bailey/NEUR608/Data/Temp/NEUR608_Lx1_X_DF_Original_Data_Dec_7_2022_To_Use.csv')
+
+#write_csv(Lx1_X_DF_Original_Data, '/Users/alexander_bailey/NEUR608/Data/Temp/NEUR608_Lx1_X_DF_Original_Data_Nov_22_2022.csv')
+
+#Now, let's edit 2
+Px2_matrix_corrected<- Px2_matrix %>% mutate(p_values = (2*pnorm(Px2_matrix$adjusted_Z_score_original_data_Px2, lower.tail=FALSE)))
+p_val_Px2<- c(Px2_matrix_corrected$p_values)
+FDR_corr_p_val_Px2 <- p.adjust(p_val_Px2, method = "BH")
+
+Px2_matrix_corrected_to_go<- Px2_matrix_corrected %>%  mutate(FDR_p = FDR_corr_p_val_Px2, Corr_2 = X_matrix_Lx2)
+Px2_matrix_corrected_to_go
+
+Lx2_X_DF_Original_Data<- Px2_matrix_corrected_to_go %>% mutate(Corrected_Pearson_R = ifelse(FDR_p < .05, Corr_2, NA)) %>% mutate(Corrected_p_Values = ifelse(FDR_p < .05, FDR_p, NA))
+
+write_csv(Lx2_X_DF_Original_Data, '/Users/alexander_bailey/NEUR608/Data/Temp/NEUR608_Lx2_X_DF_Original_Data_Dec_7_2022_To_Use.csv')
+
+#write_csv(Lx2_X_DF_Original_Data, '/Users/alexander_bailey/NEUR608/Data/Temp/NEUR608_Lx2_X_DF_Original_Data_Nov_22_2022.csv')
+
+#Now we do the same for 3
+
+Px3_matrix_corrected<- Px3_matrix %>% mutate(p_values = (2*pnorm(Px3_matrix$adjusted_Z_score_original_data_Px3, lower.tail=FALSE)))
+p_val_Px3<- c(Px3_matrix_corrected$p_values)
+FDR_corr_p_val_Px3 <- p.adjust(p_val_Px3, method = "BH")
+FDR_corr_p_val_Px3
+
+Px3_matrix_corrected_to_go<- Px3_matrix_corrected %>%  mutate(FDR_p = FDR_corr_p_val_Px3, Corr_3 = X_matrix_Lx3)
+Px3_matrix_corrected_to_go
+
+Lx3_X_DF_Original_Data<-Px3_matrix_corrected_to_go %>% mutate(Corrected_Pearson_R = ifelse(FDR_p < .05, Corr_3, NA)) %>% mutate(Corrected_p_Values = ifelse(FDR_p < .05, FDR_p, NA))
+
+Lx3_X_DF_Original_Data
+
+write_csv(Lx3_X_DF_Original_Data, '/Users/alexander_bailey/NEUR608/Data/Temp/NEUR608_Lx3_X_DF_Original_Data_Dec_7_2022_To_Use.csv')
+
+#write_csv(Lx3_X_DF_Original_Data, '/Users/alexander_bailey/NEUR608/Data/Temp/NEUR608_Lx3_X_DF_Original_Data_Nov_22_2022.csv')
+
+#And lastly 4
+
+Px4_matrix_corrected<- Px4_matrix %>% mutate(p_values = (2*pnorm(Px4_matrix$adjusted_Z_score_original_data_Px4, lower.tail=FALSE)))
+p_val_Px4<- c(Px4_matrix_corrected$p_values)
+p_val_Px4
+FDR_corr_p_val_Px4 <- p.adjust(p_val_Px4, method = "BH") #Bless you FDR/BH corrections in R! 
+FDR_corr_p_val_Px4
+
+Px4_matrix_corrected_to_go<- Px4_matrix_corrected %>%  mutate(FDR_p = FDR_corr_p_val_Px4, Corr_4 = X_matrix_Lx4)
+Px4_matrix_corrected_to_go
+
+#Ok, so this gives us the proper thing
+#Now, we want to do a special ifelse (more lenient for this case) for one last column, and then we'll be good to go! 
+Lx4_X_DF_Original_Data <-Px4_matrix_corrected_to_go %>% mutate(Corrected_Pearson_R = ifelse(FDR_p < .05, Corr_4, NA)) %>% mutate(Corrected_p_Values = ifelse(FDR_p < .05, FDR_p, NA))
+
+Lx4_X_DF_Original_Data
+
+write_csv(Lx4_X_DF_Original_Data, '/Users/alexander_bailey/NEUR608/Data/Temp/NEUR608_Lx4_X_DF_Original_Data_Dec_7_2022_To_Use.csv')
+
+#write_csv(Lx4_X_DF_Original_Data, '/Users/alexander_bailey/NEUR608/Data/Temp/NEUR608_Lx4_X_DF_Original_Data_Nov_22_2022.csv')
+
+
+Px5_matrix_corrected<- Px5_matrix %>% mutate(p_values = (2*pnorm(Px5_matrix$adjusted_Z_score_original_data_Px5, lower.tail=FALSE)))
+p_val_Px5<- c(Px5_matrix_corrected$p_values)
+p_val_Px5
+FDR_corr_p_val_Px5 <- p.adjust(p_val_Px5, method = "BH") #Bless you FDR/BH corrections in R! 
+FDR_corr_p_val_Px5
+
+Px5_matrix_corrected_to_go<- Px5_matrix_corrected %>%  mutate(FDR_p = FDR_corr_p_val_Px5, Corr_5 = X_matrix_Lx5)
+Px5_matrix_corrected_to_go
+
+#Ok, so this gives us the proper thing
+#Now, we want to do a special ifelse (more lenient for this case) for one last column, and then we'll be good to go! 
+Lx5_X_DF_Original_Data <-Px5_matrix_corrected_to_go %>% mutate(Corrected_Pearson_R = ifelse(FDR_p < .05, Corr_5, NA)) %>% mutate(Corrected_p_Values = ifelse(FDR_p < .05, FDR_p, NA))
+
+Lx5_X_DF_Original_Data
+
+
+#Hang on! We JUST need the adjusted p-values to help us to solve this! That is, we make a selection of the values based on the values of this (see above for ifelse statement for this very reason)
+
+#Remember: These are our fundamental values
+FDR_corr_p_val_Px1
+X_matrix_PLS_Corr_Unstandardized_1
+
+
+#Now, let's take that value for Correlation out and use that as our mapping, along with the mapping that we have for the unstandardized matrix. We'll use these guys as our friends for the matrices. Then we should be good to go! 
+
+X_matrix_corrected_R_Lx1<- c(Lx1_X_DF_Original_Data$Corrected_Pearson_R)
+X_matrix_corrected_R_Lx1
+X_matrix_corrected_R_Lx2<- c(Lx2_X_DF_Original_Data$Corrected_Pearson_R)
+X_matrix_corrected_R_Lx3<- c(Lx3_X_DF_Original_Data$Corrected_Pearson_R)
+X_matrix_corrected_R_Lx4<- c(Lx4_X_DF_Original_Data$Corrected_Pearson_R)
+X_matrix_corrected_R_Lx5<- c(Lx5_X_DF_Original_Data$Corrected_Pearson_R)
+
+X_matrix_corrected_p_Lx1<- c(Lx1_X_DF_Original_Data$Corrected_p_Values)
+X_matrix_corrected_p_Lx1
+X_matrix_corrected_p_Lx2<- c(Lx2_X_DF_Original_Data$Corrected_p_Values)
+X_matrix_corrected_p_Lx3<- c(Lx3_X_DF_Original_Data$Corrected_p_Values)
+X_matrix_corrected_p_Lx4<- c(Lx4_X_DF_Original_Data$Corrected_p_Values)
+X_matrix_corrected_p_Lx5<- c(Lx5_X_DF_Original_Data$Corrected_p_Values)
+
+#This is what I've been waiting for! 
+X_matrix_PLS_Corr_Unstandardized_1_Corrected<- rbind.data.frame(X_matrix_PLS_Corr_Unstandardized_1, X_matrix_corrected_R_Lx1, X_matrix_corrected_p_Lx1)
+
+X_matrix_PLS_Corr_Unstandardized_2_Corrected<- rbind.data.frame(X_matrix_PLS_Corr_Unstandardized_2, X_matrix_corrected_R_Lx2, X_matrix_corrected_p_Lx2)
+
+X_matrix_PLS_Corr_Unstandardized_3_Corrected<- rbind.data.frame(X_matrix_PLS_Corr_Unstandardized_3, X_matrix_corrected_R_Lx3, X_matrix_corrected_p_Lx3)
+
+X_matrix_PLS_Corr_Unstandardized_4_Corrected<- rbind.data.frame(X_matrix_PLS_Corr_Unstandardized_4, X_matrix_corrected_R_Lx4, X_matrix_corrected_p_Lx4)
+
+X_matrix_PLS_Corr_Unstandardized_5_Corrected<- rbind.data.frame(X_matrix_PLS_Corr_Unstandardized_5, X_matrix_corrected_R_Lx5, X_matrix_corrected_p_Lx5)
+
+#Almost! Hang on! We need an easy to use way of knowing which values are correct! The above is useful for potential graphing on a brain, however, there is one more step! 
+
+#That step: ADD YOUR p-VALUES AND R values AFTER SUBSETTING!!!
+
+#Now, we can do the thing!!! Namely, get our data into the proper format and ready for production of X Matrix
+
+Full_Correlation_Original_X_Lx1<- bind_rows(Comparison, X_matrix_PLS_Corr_Unstandardized_1_Corrected)
+Full_Correlation_Original_X_Lx1
+
+X_matrix_PLS_Corr_Unstandardized_1_Corrected
+
+Full_Corr_matrix_vector_Lx1<- Full_Correlation_Original_X_Lx1[2,]
+Full_Corr_matrix_vector_Lx1
+Thresholded_matrix_vector_Lx1<- Full_Correlation_Original_X_Lx1[3,]
+Thresholded_matrix_vector_Lx1
+p_values_thresholded_Lx1<- Full_Correlation_Original_X_Lx1[4,] 
+
+Full_Correlation_Original_X_Lx2<- bind_rows(Comparison, X_matrix_PLS_Corr_Unstandardized_2_Corrected)
+Full_Corr_matrix_vector_Lx2<- Full_Correlation_Original_X_Lx2[2,]
+Thresholded_matrix_vector_Lx2<- Full_Correlation_Original_X_Lx2[3,]
+p_values_thresholded_Lx2<- Full_Correlation_Original_X_Lx2[4,] 
+
+Full_Correlation_Original_X_Lx3<- bind_rows(Comparison, X_matrix_PLS_Corr_Unstandardized_3_Corrected)
+Full_Correlation_Original_X_Lx3
+Full_Corr_matrix_vector_Lx3<- Full_Correlation_Original_X_Lx3[2,]
+Thresholded_matrix_vector_Lx3<- Full_Correlation_Original_X_Lx3[3,]
+p_values_thresholded_Lx3<- Full_Correlation_Original_X_Lx3[4,] 
+
+
+Full_Correlation_Original_X_Lx4<- bind_rows(Comparison, X_matrix_PLS_Corr_Unstandardized_4_Corrected)
+Full_Correlation_Original_X_Lx4
+Full_Corr_matrix_vector_Lx4<- Full_Correlation_Original_X_Lx4[2,]
+Thresholded_matrix_vector_Lx4<- Full_Correlation_Original_X_Lx4[3,]
+p_values_thresholded_Lx4<- Full_Correlation_Original_X_Lx4[4,] 
+
+Full_Correlation_Original_X_Lx5<- bind_rows(Comparison, X_matrix_PLS_Corr_Unstandardized_5_Corrected)
+Full_Correlation_Original_X_Lx5
+Full_Corr_matrix_vector_Lx5<- Full_Correlation_Original_X_Lx5[2,]
+Thresholded_matrix_vector_Lx5<- Full_Correlation_Original_X_Lx5[3,]
+p_values_thresholded_Lx5<- Full_Correlation_Original_X_Lx5[4,] 
+
+#Save values for Lx1
+write_csv(Full_Corr_matrix_vector_Lx1, "/Users/alexander_bailey/NEUR608/Data/Temp/NEUR608_Full_Corr_matrix_vector_Lx1_Original_DF_Dec_7_2022.csv")
+
+write_csv(Thresholded_matrix_vector_Lx1, "/Users/alexander_bailey/NEUR608/Data/Temp/NEUR608_Thresholded_matrix_vector_Lx1_Original_DF_Dec_7_2022.csv")
+
+write_csv(p_values_thresholded_Lx1, "/Users/alexander_bailey/NEUR608/Data/Temp/NEUR608_p_values_thresholded_Lx1_Original_DF_Nov_Dec_7_2022.csv")
+
+
+#Save values for Lx2
+write_csv(Full_Corr_matrix_vector_Lx2, "/Users/alexander_bailey/NEUR608/Data/Temp/NEUR608_Full_Corr_matrix_vector_Lx2_Original_DF_Dec_7_2022.csv")
+
+write_csv(Thresholded_matrix_vector_Lx2, "/Users/alexander_bailey/NEUR608/Data/Temp/NEUR608_Thresholded_matrix_vector_Lx2_Original_DF_Dec_7_2022.csv")
+
+write_csv(p_values_thresholded_Lx2, "/Users/alexander_bailey/NEUR608/Data/Temp/NEUR608_p_values_thresholded_Lx2_Original_DF_Dec_7_2022.csv")
+
+#Save values for Lx3
+write_csv(Full_Corr_matrix_vector_Lx3, "/Users/alexander_bailey/NEUR608/Data/Temp/NEUR608_Full_Corr_matrix_vector_Lx3_Original_DF_Dec_7_2022.csv")
+
+write_csv(Thresholded_matrix_vector_Lx3, "/Users/alexander_bailey/NEUR608/Data/Temp/NEUR608_Thresholded_matrix_vector_Lx3_Original_DF_Dec_7_2022.csv")
+
+write_csv(p_values_thresholded_Lx3, "/Users/alexander_bailey/NEUR608/Data/Temp/NEUR608_p_values_thresholded_Lx3_Original_DF_Dec_7_2022.csv")
+
+#Save values for Lx4
+write_csv(Full_Corr_matrix_vector_Lx4, "/Users/alexander_bailey/NEUR608/Data/Temp/NEUR608_Full_Corr_matrix_vector_Lx4_Original_DF_Dec_7_2022.csv")
+
+write_csv(Thresholded_matrix_vector_Lx4, "/Users/alexander_bailey/NEUR608/Data/Temp/NEUR608_Thresholded_matrix_vector_Lx4_Original_DF_Dec_7_2022.csv")
+
+write_csv(p_values_thresholded_Lx4, "/Users/alexander_bailey/NEUR608/Data/Temp/NEUR608_p_values_thresholded_Lx4_Original_DF_Dec_7_2022.csv")
+
+#Save values for Lx5
+write_csv(Full_Corr_matrix_vector_Lx5, "/Users/alexander_bailey/NEUR608/Data/Temp/NEUR608_Full_Corr_matrix_vector_Lx5_Original_DF_Dec_7_2022.csv")
+
+write_csv(Thresholded_matrix_vector_Lx5, "/Users/alexander_bailey/NEUR608/Data/Temp/NEUR608_Thresholded_matrix_vector_Lx5_Original_DF_Dec_7_2022.csv")
+
+write_csv(p_values_thresholded_Lx5, "/Users/alexander_bailey/NEUR608/Data/Temp/NEUR608_p_values_thresholded_Lx5_Original_DF_Dec_7_2022.csv")
+```
+
+Now, let's load our correlation maps/heatmaps for our fMRI data - Return to Python
+
+%matplotlib inline
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+import seaborn as sns
+import sklearn as scikitlearn
+import scipy
+import bokeh as bokeh
+import enigmatoolbox
+import os as os
+import nilearn as nl
+
+import nibabel as nibl
+from nilearn import plotting
+from nilearn import image
+import statsmodels
+import pingouin
+import plotly 
+
+from nilearn.connectome import ConnectivityMeasure
+correlation_measure = ConnectivityMeasure(kind='correlation')
+
+from nilearn.connectome import vec_to_sym_matrix
+
+#As an example, let's select the first LC
+Full_Corr_matrix_vector_Lx1 = pd.read_csv("/Users/alexander_bailey/NEUR608/Data/Temp/NEUR608_Full_Corr_matrix_vector_Lx1_Original_DF_Dec_7_2022.csv")
+Thresholded_matrix_vector_Lx1 = pd.read_csv("/Users/alexander_bailey/NEUR608/Data/Temp/NEUR608_Thresholded_matrix_vector_Lx1_Original_DF_Dec_7_2022.csv")
+p_values_thresholded_Lx1 = pd.read_csv("/Users/alexander_bailey/NEUR608/Data/Temp/NEUR608_p_values_thresholded_Lx1_Original_DF_Nov_Dec_7_2022.csv")
+
+Full_Corr_matrix_vector_Lx1_array = np.array(Full_Corr_matrix_vector_Lx1)
+Thresholded_matrix_vector_Lx1_array = np.array(Thresholded_matrix_vector_Lx1)
+p_values_thresholded_Lx1_array = np.array(p_values_thresholded_Lx1)
+
+new_corrected_labels = pd.read_csv('/Users/alexander_bailey/NEUR608/Data/Temp/NEUR608_Correct_Label_Names_Nov_24_2022.csv') 
+#Let's now add the labels that we have for the Schaefer-17 400 atlas
+
+#LX1 Unthresholded (TOTAL):
+new_corrected_labels = pd.read_csv('/Users/alexander_bailey/NEUR608/Data/Temp/NEUR608_Correct_Label_Names_Nov_24_2022.csv')
+Main_Original_PLS_LxC1_Matrix_TOTAL_Nov_25_2022 = pd.DataFrame(vec_to_sym_matrix(Full_Corr_matrix_vector_Lx1_array)[0]) #OVERALL CODE TO DO THE WHOLE TRANSITION
+Main_Original_PLS_LxC1_Matrix_TOTAL_Nov_25_2022.columns = new_corrected_labels
+Main_Original_PLS_LxC1_Matrix_TOTAL_Nov_25_2022.index = new_corrected_labels
+Main_Original_PLS_LxC1_Matrix_TOTAL_Nov_25_2022 = Main_Original_PLS_LxC1_Matrix_TOTAL_Nov_25_2022.fillna(0)
+plotting.plot_matrix(Main_Original_PLS_LxC1_Matrix_TOTAL_Nov_25_2022, cmap = 'RdBu')
+plt.axhline(y = 24, color = 'orange', linestyle = '-')
+plt.axhline(y = 59, color = 'orange', linestyle = '-')
+plt.axhline(y = 85, color = 'orange', linestyle = '-')
+plt.axhline(y = 108, color = 'orange', linestyle = '-')
+plt.axhline(y = 120, color = 'orange', linestyle = '-')
+plt.axhline(y = 148, color = 'orange', linestyle = '-')
+plt.axhline(y = 194, color = 'orange', linestyle = '-')
+plt.axhline(y = 200, color = 'orange', linestyle = '-')
+plt.axhline(y = 224, color = 'orange', linestyle = '-')
+plt.axhline(y = 259, color = 'orange', linestyle = '-')
+plt.axhline(y = 285, color = 'orange', linestyle = '-')
+plt.axhline(y = 308, color = 'orange', linestyle = '-')
+plt.axhline(y = 320, color = 'orange', linestyle = '-')
+plt.axhline(y = 348, color = 'orange', linestyle = '-')
+plt.axhline(y = 394, color = 'orange', linestyle = '-')
+plt.axvline(x = 24, color = 'orange', label = 'axvline - full height')
+plt.axvline(x = 59, color = 'orange', label = 'axvline - full height')
+plt.axvline(x = 85, color = 'orange', label = 'axvline - full height')
+plt.axvline(x = 108, color = 'orange', label = 'axvline - full height')
+plt.axvline(x = 120, color = 'orange', label = 'axvline - full height')
+plt.axvline(x = 148, color = 'orange', label = 'axvline - full height')
+plt.axvline(x = 194, color = 'orange', label = 'axvline - full height')
+plt.axvline(x = 200, color = 'orange', label = 'axvline - full height')
+plt.axvline(x = 224, color = 'orange', label = 'axvline - full height')
+plt.axvline(x = 259, color = 'orange', label = 'axvline - full height')
+plt.axvline(x = 285, color = 'orange', label = 'axvline - full height')
+plt.axvline(x = 308, color = 'orange', label = 'axvline - full height')
+plt.axvline(x = 320, color = 'orange', label = 'axvline - full height')
+plt.axvline(x = 348, color = 'orange', label = 'axvline - full height')
+plt.axvline(x = 394, color = 'orange', label = 'axvline - full height')
+
+tickloc = [12.5, 42, 72.5, 97, 114.5, 134.5, 171.5, 197.5, 212.5, 242, 272.5, 297, 314.5, 334.5, 371.5, 397.5]
+labels = ["Visual_L", "SM_L", "DAtt_L", "VAtt_L", "Limbic_L", "Control_L", "DMN_L", "Temp_Par_L", "Visual_R", "SM_R", "DAtt_R", "VAtt_R", "Limbic_R", "Control_R", "DMN_R", "Temp_Par_R"]
+
+plt.title('Unthresholded RSFC Correlations')
+plt.xticks(tickloc, labels, rotation='vertical')
+plt.yticks(tickloc, labels)
+plt.show()
+
+
+#Main_Original_PLS_LxC1_Matrix_TOTAL_Nov_25_2022.to_csv('/Users/alexander_bailey/NEUR608/Data/Temp/Original_DF_PLS_LxC1_Matrix_TOTAL_Dec_9_2022.csv')
+
+#LX1 Thresholded:
+Main_Original_PLS_LxC1_Matrix_THRESHOLDED_Nov_25_2022 = pd.DataFrame(vec_to_sym_matrix(Thresholded_matrix_vector_Lx1_array)[0]) #OVERALL CODE TO DO THE WHOLE TRANSITION
+Main_Original_PLS_LxC1_Matrix_THRESHOLDED_Nov_25_2022.columns = new_corrected_labels
+Main_Original_PLS_LxC1_Matrix_THRESHOLDED_Nov_25_2022.index = new_corrected_labels
+Main_Original_PLS_LxC1_Matrix_THRESHOLDED_Nov_25_2022 = Main_Original_PLS_LxC1_Matrix_THRESHOLDED_Nov_25_2022.fillna(0)
+plotting.plot_matrix(Main_Original_PLS_LxC1_Matrix_THRESHOLDED_Nov_25_2022, cmap = 'viridis')
+
+plt.axhline(y = 24, color = 'orange', linestyle = '-')
+plt.axhline(y = 59, color = 'orange', linestyle = '-')
+plt.axhline(y = 85, color = 'orange', linestyle = '-')
+plt.axhline(y = 108, color = 'orange', linestyle = '-')
+plt.axhline(y = 120, color = 'orange', linestyle = '-')
+plt.axhline(y = 148, color = 'orange', linestyle = '-')
+plt.axhline(y = 194, color = 'orange', linestyle = '-')
+plt.axhline(y = 200, color = 'orange', linestyle = '-')
+plt.axhline(y = 224, color = 'orange', linestyle = '-')
+plt.axhline(y = 259, color = 'orange', linestyle = '-')
+plt.axhline(y = 285, color = 'orange', linestyle = '-')
+plt.axhline(y = 308, color = 'orange', linestyle = '-')
+plt.axhline(y = 320, color = 'orange', linestyle = '-')
+plt.axhline(y = 348, color = 'orange', linestyle = '-')
+plt.axhline(y = 394, color = 'orange', linestyle = '-')
+plt.axvline(x = 24, color = 'orange', label = 'axvline - full height')
+plt.axvline(x = 59, color = 'orange', label = 'axvline - full height')
+plt.axvline(x = 85, color = 'orange', label = 'axvline - full height')
+plt.axvline(x = 108, color = 'orange', label = 'axvline - full height')
+plt.axvline(x = 120, color = 'orange', label = 'axvline - full height')
+plt.axvline(x = 148, color = 'orange', label = 'axvline - full height')
+plt.axvline(x = 194, color = 'orange', label = 'axvline - full height')
+plt.axvline(x = 200, color = 'orange', label = 'axvline - full height')
+plt.axvline(x = 224, color = 'orange', label = 'axvline - full height')
+plt.axvline(x = 259, color = 'orange', label = 'axvline - full height')
+plt.axvline(x = 285, color = 'orange', label = 'axvline - full height')
+plt.axvline(x = 308, color = 'orange', label = 'axvline - full height')
+plt.axvline(x = 320, color = 'orange', label = 'axvline - full height')
+plt.axvline(x = 348, color = 'orange', label = 'axvline - full height')
+plt.axvline(x = 394, color = 'orange', label = 'axvline - full height')
+
+tickloc = [12.5, 42, 72.5, 97, 114.5, 134.5, 171.5, 197.5, 212.5, 242, 272.5, 297, 314.5, 334.5, 371.5, 397.5]
+labels = ["Visual_L", "SM_L", "DAtt_L", "VAtt_L", "Limbic_L", "Control_L", "DMN_L", "Temp_Par_L", "Visual_R", "SM_R", "DAtt_R", "VAtt_R", "Limbic_R", "Control_R", "DMN_R", "Temp_Par_R"]
+
+plt.title('Thresholded (FDR-corrected) RSFC Correlations')
+plt.xticks(tickloc, labels, rotation='vertical')
+plt.yticks(tickloc, labels)
+plt.show()
+
+
+#######Code for Main Y LC Graphs
+
+main_graphing_df_Main_data<- read_csv('/Users/alexander_bailey/NEUR608/Data/Temp/NEUR608_Graphing_Main_Scatterplots_and_Bar_Graphs_Main_Data_Dec_7_2022_To_Use.csv')
+
+Y_matrix_main<- read_csv('/Users/alexander_bailey/Sharp_Lab/Data/Temp/NEUR608_2022_UnStandardized_Main_Sample_Variables_Dec_7_TO_USE.csv') %>%  rename(`Education Yrs` = Education_years_Median_Imputation, `Disease Duration Yrs`= Disease_duration_since_diag, `Semantic Fluency Total` = Semantic_fluency_Total, `TMT B-A` = TMT_B_A_Reversed, `Letter Fluency Total`=Letter_fluency_Total, `TMT A` = TMT_A_Reversed, `Clock Command` = Clock_command,`RCFT Copy`= RCFT_Copy, `HVLT Immediate` = HVLT_Total, `Stroop D-Kefs Interference` = Stroop_D_Kefs_Interference_Reversed, `Stroop Golden Interference` = Stroop_Interference, `BNT No-Indicators` = BNT_no_indicators, `LED Amount` = LED_Amount, `PDQ-39 Total` = PDQ_39_Total, `Brixton Error` = Brixton_Error_Reversed)
+names(Y_matrix_main)
+
+#Now, can select a particular LC of interest to create a graph
+
+#First Major Graph in R
+major_plot<- ggplot(main_graphing_df_Main_data, aes(Groups, `RSFC Composite Scores 1`, fill = Groups)) 
+major_plot + geom_boxplot(position = position_dodge(0.8), width = 0.7, alpha= 0.3, coef = 0, outlier.shape = NA, outlier.colour="purple",outlier.fill="purple", outlier.size=1) + geom_jitter(aes(colour = Groups), alpha=0.6, position = position_jitterdodge(jitter.width = 0.2, dodge.width = 0.8)) + stat_summary(fun.data = mean_cl_boot, geom = "errorbar", colour = "black", position = position_dodge(0.8), width = 0.2, alpha=0.9, size=1) + stat_summary(fun.y=mean, geom="point", size=2, position = position_dodge(0.8)) + labs(x = "Groups", y = "RSFC Composite Scores", title = "Group Differences Between RSFC Composite Scores LC1") + theme_minimal()
+
+#Now Behavioural Stuff
+main_graphing_df_Main_data$`Behavioural Composite Scores 1`
+major_plot<- ggplot(main_graphing_df_Main_data, aes(Groups, `Behavioural Composite Scores 1`, fill = Groups)) 
+major_plot + geom_boxplot(position = position_dodge(0.8), width = 0.7, alpha= 0.3, coef = 0, outlier.shape = NA, outlier.colour="purple",outlier.fill="purple", outlier.size=1) + geom_jitter(aes(colour = Groups), alpha=0.6, position = position_jitterdodge(jitter.width = 0.2, dodge.width = 0.8)) + stat_summary(fun.data = mean_cl_boot, geom = "errorbar", colour = "black", position = position_dodge(0.8), width = 0.2, alpha=0.9, size=1) + stat_summary(fun.y=mean, geom="point", size=2, position = position_dodge(0.8)) + labs(x = "Groups", y = "Behavioural Composite Scores", title = "Group Differences Between Behavioural Composite Scores LC1") + geom_signif(y_position = c(3.5, 3.5), xmin = c(1.1, 2.1), xmax = c(1.9, 2.9), annotation = c("p = .023; BF = 18.75", "p = .003; BF = 43.05"), tip_length = 0.02) + theme_minimal()
+
+#RSFC for L2
+major_plot<- ggplot(main_graphing_df_Main_data, aes(Groups, `RSFC Composite Scores 2`, fill = Groups)) 
+major_plot + geom_boxplot(position = position_dodge(0.8), width = 0.7, alpha= 0.3, coef = 0, outlier.shape = NA, outlier.colour="purple",outlier.fill="purple", outlier.size=1) + geom_jitter(aes(colour = Groups), alpha=0.6, position = position_jitterdodge(jitter.width = 0.2, dodge.width = 0.8)) + stat_summary(fun.data = mean_cl_boot, geom = "errorbar", colour = "black", position = position_dodge(0.8), width = 0.2, alpha=0.9, size=1) + stat_summary(fun.y=mean, geom="point", size=2, position = position_dodge(0.8)) + labs(x = "Groups", y = "RSFC Composite Scores", title = "Group Differences Between RSFC Composite Scores LC2") + geom_signif(y_position = c(200, 250), xmin = c(1.1, 1.1), xmax = c(1.9, 2.9), annotation = c("p = .0035; BF = 9.49", "p = .0313; BF = 48.05"), tip_length = 0.02) + theme_minimal()
+
+#Now Behavioural Stuff
+major_plot<- ggplot(main_graphing_df_Main_data, aes(Groups, `Behavioural Composite Scores 2`, fill = Groups)) 
+major_plot + geom_boxplot(position = position_dodge(0.8), width = 0.7, alpha= 0.3, coef = 0, outlier.shape = NA, outlier.colour="purple",outlier.fill="purple", outlier.size=1) + geom_jitter(aes(colour = Groups), alpha=0.6, position = position_jitterdodge(jitter.width = 0.2, dodge.width = 0.8)) + stat_summary(fun.data = mean_cl_boot, geom = "errorbar", colour = "black", position = position_dodge(0.8), width = 0.2, alpha=0.9, size=1) + stat_summary(fun.y=mean, geom="point", size=2, position = position_dodge(0.8)) + labs(x = "Groups", y = "Behavioural Composite Scores", title = "Group Differences Between Behavioural Composite Scores LC2") + geom_signif(y_position = c(1.75, 1.75, 2.2), xmin = c(1.1, 2.1, 1.1), xmax = c(1.9, 2.9, 2.9), annotation = c("p = .0035; BF = 11.33", "p = .0035; BF = 12.50", "p < .001; BF = 5.49e7"), tip_length = 0.02) + theme_minimal()
+
+
+#RSFC for L3
+major_plot<- ggplot(main_graphing_df_Main_data, aes(Groups, `RSFC Composite Scores 3`, fill = Groups)) 
+major_plot + geom_boxplot(position = position_dodge(0.8), width = 0.7, alpha= 0.3, coef = 0, outlier.shape = NA, outlier.colour="purple",outlier.fill="purple", outlier.size=1) + geom_jitter(aes(colour = Groups), alpha=0.6, position = position_jitterdodge(jitter.width = 0.2, dodge.width = 0.8)) + stat_summary(fun.data = mean_cl_boot, geom = "errorbar", colour = "black", position = position_dodge(0.8), width = 0.2, alpha=0.9, size=1) + stat_summary(fun.y=mean, geom="point", size=2, position = position_dodge(0.8)) + labs(x = "Groups", y = "RSFC Composite Scores", title = "Group Differences Between RSFC Composite Scores LC3")  + theme_minimal()
+
+#Now Behavioural Stuff for LY3
+major_plot<- ggplot(main_graphing_df_Main_data, aes(Groups, `Behavioural Composite Scores 3`, fill = Groups)) 
+major_plot + geom_boxplot(position = position_dodge(0.8), width = 0.7, alpha= 0.3, coef = 0, outlier.shape = NA, outlier.colour="purple",outlier.fill="purple", outlier.size=1) + geom_jitter(aes(colour = Groups), alpha=0.6, position = position_jitterdodge(jitter.width = 0.2, dodge.width = 0.8)) + stat_summary(fun.data = mean_cl_boot, geom = "errorbar", colour = "black", position = position_dodge(0.8), width = 0.2, alpha=0.9, size=1) + stat_summary(fun.y=mean, geom="point", size=2, position = position_dodge(0.8)) + labs(x = "Groups", y = "Behavioural Composite Scores", title = "Group Differences Between Behavioural Composite Scores LC3") + geom_signif(y_position = c(2.2, 2.7), xmin = c(1.1, 1.1), xmax = c(1.9, 2.9), annotation = c("p = .0527; BF = 12.95", "p = .0527; BF = 13.95"), tip_length = 0.02) + theme_minimal()
+
+
+#RSFC for L4
+major_plot<- ggplot(main_graphing_df_Main_data, aes(Groups, `RSFC Composite Scores 4`, fill = Groups)) 
+major_plot + geom_boxplot(position = position_dodge(0.8), width = 0.7, alpha= 0.3, coef = 0, outlier.shape = NA, outlier.colour="purple",outlier.fill="purple", outlier.size=1) + geom_jitter(aes(colour = Groups), alpha=0.6, position = position_jitterdodge(jitter.width = 0.2, dodge.width = 0.8)) + stat_summary(fun.data = mean_cl_boot, geom = "errorbar", colour = "black", position = position_dodge(0.8), width = 0.2, alpha=0.9, size=1) + stat_summary(fun.y=mean, geom="point", size=2, position = position_dodge(0.8)) + labs(x = "Groups", y = "RSFC Composite Scores", title = "Group Differences Between RSFC Composite Scores LC4")  + geom_signif(y_position = 50, xmin = 2.1, xmax = 2.9, annotation = c("p =.0418; BF = 3.65"), tip_length = 0.02) + theme_minimal()
+
+#Now Behavioural Stuff
+major_plot<- ggplot(main_graphing_df_Main_data, aes(Groups, `Behavioural Composite Scores 4`, fill = Groups)) 
+major_plot + geom_boxplot(position = position_dodge(0.8), width = 0.7, alpha= 0.3, coef = 0, outlier.shape = NA, outlier.colour="purple",outlier.fill="purple", outlier.size=1) + geom_jitter(aes(colour = Groups), alpha=0.6, position = position_jitterdodge(jitter.width = 0.2, dodge.width = 0.8)) + stat_summary(fun.data = mean_cl_boot, geom = "errorbar", colour = "black", position = position_dodge(0.8), width = 0.2, alpha=0.9, size=1) + stat_summary(fun.y=mean, geom="point", size=2, position = position_dodge(0.8)) + labs(x = "Groups", y = "Behavioural Composite Scores", title = "Group Differences Between Behavioural Composite Scores LC4") + geom_signif(y_position = 2.5, xmin = 2.1, xmax = 2.9, annotation = c("p < .001; BF = 1.99e4"), tip_length = 0.02) + theme_minimal()
+
+#RSFC for L5
+major_plot<- ggplot(main_graphing_df_Main_data, aes(Groups, `RSFC Composite Scores 5`, fill = Groups)) 
+major_plot + geom_boxplot(position = position_dodge(0.8), width = 0.7, alpha= 0.3, coef = 0, outlier.shape = NA, outlier.colour="purple",outlier.fill="purple", outlier.size=1) + geom_jitter(aes(colour = Groups), alpha=0.6, position = position_jitterdodge(jitter.width = 0.2, dodge.width = 0.8)) + stat_summary(fun.data = mean_cl_boot, geom = "errorbar", colour = "black", position = position_dodge(0.8), width = 0.2, alpha=0.9, size=1) + stat_summary(fun.y=mean, geom="point", size=2, position = position_dodge(0.8)) + labs(x = "Groups", y = "RSFC Composite Scores", title = "Group Differences Between RSFC Composite Scores LC5") + theme_minimal()
+
+#Now Behavioural Stuff
+major_plot<- ggplot(main_graphing_df_Main_data, aes(Groups, `Behavioural Composite Scores 5`, fill = Groups)) 
+major_plot + geom_boxplot(position = position_dodge(0.8), width = 0.7, alpha= 0.3, coef = 0, outlier.shape = NA, outlier.colour="purple",outlier.fill="purple", outlier.size=1) + geom_jitter(aes(colour = Groups), alpha=0.6, position = position_jitterdodge(jitter.width = 0.2, dodge.width = 0.8)) + stat_summary(fun.data = mean_cl_boot, geom = "errorbar", colour = "black", position = position_dodge(0.8), width = 0.2, alpha=0.9, size=1) + stat_summary(fun.y=mean, geom="point", size=2, position = position_dodge(0.8)) + labs(x = "Groups", y = "Behavioural Composite Scores", title = "Group Differences Between Behavioural Composite Scores LC5") + theme_minimal()
+
+#Now create Linear Regression Graphs for each LC
+
+library(ggpubr)
+
+#Pearson r values
+cor(main_graphing_df_Main_data$`RSFC Composite Scores 1`, main_graphing_df_Main_data$`Behavioural Composite Scores 1`)
+cor(main_graphing_df_Main_data$`RSFC Composite Scores 2`, main_graphing_df_Main_data$`Behavioural Composite Scores 2`)
+cor(main_graphing_df_Main_data$`RSFC Composite Scores 3`, main_graphing_df_Main_data$`Behavioural Composite Scores 3`)
+cor(main_graphing_df_Main_data$`RSFC Composite Scores 4`, main_graphing_df_Main_data$`Behavioural Composite Scores 4`)
+cor(main_graphing_df_Main_data$`RSFC Composite Scores 5`, main_graphing_df_Main_data$`Behavioural Composite Scores 5`)
+
+#LC1
+Linear_Plot<- ggplot(main_graphing_df_Main_data, aes(`RSFC Composite Scores 1`, `Behavioural Composite Scores 1`)) 
+Linear_Plot + geom_point(aes(color = Groups)) + geom_smooth(method = "lm", se=TRUE, color='black', fill="#69b3a2") + labs(x ="RSFC Composite Scores", y = "Behavioural Composite Scores", title ='Correlation Between Composite Scores LC1') +  
+stat_regline_equation(label.x= -150, label.y= 1) + stat_cor(aes(label = paste(..rr.label.., ..p.label.., sep = "~`,`~")), label.x=-150, label.y=0) + theme_apa()
+
+#LC2
+Linear_Plot<- ggplot(main_graphing_df_Main_data, aes(`RSFC Composite Scores 2`, `Behavioural Composite Scores 2`)) 
+Linear_Plot + geom_point(aes(color = Groups)) + geom_smooth(method = "lm", se=TRUE, color='black', fill="#69b3a2") + labs(x ="RSFC Composite Scores", y = "Behavioural Composite Scores", title ='Correlation Between Composite Scores LC2') + stat_regline_equation(label.x= -200, label.y= 1) + stat_cor(aes(label = paste(..rr.label.., ..p.label.., sep = "~`,`~")), label.x=-200, label.y=0.5) + theme_apa()
+
+#LC3
+Linear_Plot<- ggplot(main_graphing_df_Main_data, aes(`RSFC Composite Scores 3`, `Behavioural Composite Scores 3`)) 
+Linear_Plot + geom_point(aes(color = Groups)) + geom_smooth(method = "lm", se=TRUE, color='black', fill="#69b3a2") + labs(x ="RSFC Composite Scores", y = "Behavioural Composite Scores", title ='Correlation Between Composite Scores LC3') + stat_regline_equation(label.x= -150, label.y= 1) + stat_cor(aes(label = paste(..rr.label.., ..p.label.., sep = "~`,`~")), label.x=-150, label.y=0.5) + theme_apa()
+
+#LC4
+Linear_Plot<- ggplot(main_graphing_df_Main_data, aes(`RSFC Composite Scores 4`, `Behavioural Composite Scores 4`)) 
+Linear_Plot + geom_point(aes(color = Groups)) + geom_smooth(method = "lm", se=TRUE, color='black', fill="#69b3a2") + labs(x ="RSFC Composite Scores", y = "Behavioural Composite Scores", title ='Correlation Between Composite Scores LC4') + stat_regline_equation(label.x= -200, label.y= 1) + stat_cor(aes(label = paste(..rr.label.., ..p.label.., sep = "~`,`~")), label.x=-200, label.y=0.5) + theme_apa()
+
+#LC5
+Linear_Plot<- ggplot(main_graphing_df_Main_data, aes(`RSFC Composite Scores 5`, `Behavioural Composite Scores 5`)) 
+Linear_Plot + geom_point(aes(color = Groups)) + geom_smooth(method = "lm", se=TRUE, color='black', fill="#69b3a2") + labs(x ="RSFC Composite Scores", y = "Behavioural Composite Scores", title ='Correlation Between Composite Scores LC5') + stat_regline_equation(label.x= -150, label.y= 1) + stat_cor(aes(label = paste(..rr.label.., ..p.label.., sep = "~`,`~")), label.x=-150, label.y=0.5) + theme_apa()
+
+#Now, we can create our final plot for examining the correlation of Y per LCY
+
+Latent_Y_1<- main_graphing_df_Main_data$`Behavioural Composite Scores 1`
+Latent_Y_2<- main_graphing_df_Main_data$`Behavioural Composite Scores 2`
+Latent_Y_3<- main_graphing_df_Main_data$`Behavioural Composite Scores 3`
+Latent_Y_4<- main_graphing_df_Main_data$`Behavioural Composite Scores 4`
+Latent_Y_5<- main_graphing_df_Main_data$`Behavioural Composite Scores 5`
+
+Y_matrix_main
+dim(Y_matrix_main)
+Y_matrix_main_PLS_Corr_LC1<- Y_matrix_main %>% summarize(across(.cols = everything(), ~cor(.x, Latent_Y_1, method = 'pearson')))
+Y_matrix_main_PLS_Corr_LC1
+
+#Now, let's make a data frame
+Names_LC1<-c(names(Y_matrix_main_PLS_Corr_LC1))
+LC1_Corr<-c(as.numeric(Y_matrix_main_PLS_Corr_LC1[1,]))
+
+df_LC1<- tibble(Names_LC1, LC1_Corr)
+df_LC1
+
+df_LC1<- df_LC1 %>% mutate(Domains = c("General", "General", "General", "Attention/Working Memory", "Memory", "Attention/Working Memory", "Visuospatial", "Memory", "Visuospatial", "Executive", "Executive", "Executive", "Executive", "Language", "Langage", "Language", "Medication", "QOL", "General Cognition", "Motor")) %>% relocate(Domains, .after = Names_LC1) 
+#Please note that domains reflect those of the main
+
+
+#Now we add one extra graph (LY2)
+Y_matrix_main_PLS_Corr_LC2<- Y_matrix_main %>% summarize(across(.cols = everything(), ~cor(.x, Latent_Y_2, method = 'pearson')))
+Y_matrix_main_PLS_Corr_LC2
+
+df_LC2 <- tibble(c(names(Y_matrix_main_PLS_Corr_LC2)), c(as.numeric(Y_matrix_main_PLS_Corr_LC2[1,]))) %>% rename(Names_LC2=
+`c(names(Y_matrix_main_PLS_Corr_LC2))`, LC2_Corr = `c(as.numeric(Y_matrix_main_PLS_Corr_LC2[1, ]))`)
+df_LC2
+
+df_LC2<- df_LC2 %>% mutate(Domains = c("General", "General", "General", "Attention/Working Memory", "Memory", "Attention/Working Memory", "Visuospatial", "Memory", "Visuospatial", "Executive", "Executive", "Executive", "Executive", "Language", "Langage", "Language", "Medication", "QOL", "General Cognition", "Motor")) %>% relocate(Domains, .after = Names_LC2) 
+
+
+#Ok, just need to make a 2 column matrix based on this, add CIs, and then we're on our way! 
+
+Y_matrix_main_PLS_Corr_LC3<- Y_matrix_main %>% summarize(across(.cols = everything(), ~cor(.x, Latent_Y_3, method = 'pearson')))
+Y_matrix_main_PLS_Corr_LC3
+
+df_LC3 <- tibble(c(names(Y_matrix_main_PLS_Corr_LC3)), c(as.numeric(Y_matrix_main_PLS_Corr_LC3[1,]))) %>% rename(Names_LC3=
+`c(names(Y_matrix_main_PLS_Corr_LC3))`, LC3_Corr = `c(as.numeric(Y_matrix_main_PLS_Corr_LC3[1, ]))`)
+df_LC3
+
+df_LC3<- df_LC3 %>% mutate(Domains = c("General", "General", "General", "Attention/Working Memory", "Memory", "Attention/Working Memory", "Visuospatial", "Memory", "Visuospatial", "Executive", "Executive", "Executive", "Executive", "Language", "Langage", "Language", "Medication", "QOL", "General Cognition", "Motor")) %>% relocate(Domains, .after = Names_LC3) 
+
+
+Y_matrix_main_PLS_Corr_LC4<- Y_matrix_main %>% summarize(across(.cols = everything(), ~cor(.x, Latent_Y_4, method = 'pearson')))
+
+df_LC4<- tibble(c(names(Y_matrix_main_PLS_Corr_LC4)), c(as.numeric(Y_matrix_main_PLS_Corr_LC4[1,]))) %>% rename(Names_LC4=
+`c(names(Y_matrix_main_PLS_Corr_LC4))`, LC4_Corr = `c(as.numeric(Y_matrix_main_PLS_Corr_LC4[1, ]))`)
+df_LC4
+
+df_LC4<- df_LC4 %>% mutate(Domains = c("General", "General", "General", "Attention/Working Memory", "Memory", "Attention/Working Memory", "Visuospatial", "Memory", "Visuospatial", "Executive", "Executive", "Executive", "Executive", "Language", "Langage", "Language", "Medication", "QOL", "General Cognition", "Motor")) %>% relocate(Domains, .after = Names_LC4) 
+
+#Final Graph for Examining Effects of Y
+Y_matrix_main_PLS_Corr_LC5<- Y_matrix_main %>% summarize(across(.cols = everything(), ~cor(.x, Latent_Y_5, method = 'pearson')))
+
+df_LC5<- tibble(c(names(Y_matrix_main_PLS_Corr_LC5)), c(as.numeric(Y_matrix_main_PLS_Corr_LC5[1,]))) %>% rename(Names_LC5=
+`c(names(Y_matrix_main_PLS_Corr_LC5))`, LC5_Corr = `c(as.numeric(Y_matrix_main_PLS_Corr_LC5[1, ]))`)
+df_LC5
+
+df_LC5<- df_LC5 %>% mutate(Domains = c("General", "General", "General", "Attention/Working Memory", "Memory", "Attention/Working Memory", "Visuospatial", "Memory", "Visuospatial", "Executive", "Executive", "Executive", "Executive", "Language", "Langage", "Language", "Medication", "QOL", "General Cognition", "Motor")) %>% relocate(Domains, .after = Names_LC5) 
+
+#Code for Creating a Bootstrapped Confidence Interval for the Correlations between each LCY and each Y variable 
+#For LC1
+library(boot)
+set.seed(111111)
+#bootstrap_corr <- boot(data = Bootstrapped_df, statistic = corr.fun, R = 500)
+
+#1 Age
+corr.fun1 <- function(data, idx)
+{
+  df <- data[idx, ]
+ 
+ #Now Repeat for the variable 1
+  c(cor(df[, 1], df[, 21], method = 'pearson')) #Note that 21 reflects the position of the LC in our dataframe
+}
+bootstrap_corr_LC1_1 <- boot(data = Bootstrapped_df, statistic = corr.fun1, R = 1000)
+print(bootstrap_corr_LC1_1)
+plot(bootstrap_corr_LC1_1)
+boot.ci(boot.out = bootstrap_corr_LC1_1, conf = .95, type = "bca")
+
+#Education
+corr.fun2 <- function(data, idx)
+{
+  df <- data[idx, ]
+ 
+ #Now Repeat for the variable 2
+  c(cor(df[, 2], df[, 21], method = 'pearson'))
+}
+bootstrap_corr_LC1_2 <- boot(data = Bootstrapped_df, statistic = corr.fun2, R = 1000)
+print(bootstrap_corr_LC1_2)
+plot(bootstrap_corr_LC1_2)
+boot.ci(boot.out = bootstrap_corr_LC1_2, conf = .95, type = "bca")
+
+#Disease Duration
+corr.fun3 <- function(data, idx)
+{
+  df <- data[idx, ]
+ 
+ #Now Repeat for the variable 3
+  c(cor(df[, 3], df[, 21], method = 'pearson'))
+}
+bootstrap_corr_LC1_3 <- boot(data = Bootstrapped_df, statistic = corr.fun3, R = 1000)
+print(bootstrap_corr_LC1_3)
+plot(bootstrap_corr_LC1_3)
+boot.ci(boot.out = bootstrap_corr_LC1_3, conf = .95, type = "bca")
+
+
+corr.fun4 <- function(data, idx)
+{
+  df <- data[idx, ]
+ 
+ #Now Repeat for the variable 4
+  c(cor(df[, 4], df[, 21], method = 'pearson'))
+}
+bootstrap_corr_LC1_4 <- boot(data = Bootstrapped_df, statistic = corr.fun4, R = 1000)
+print(bootstrap_corr_LC1_4)
+plot(bootstrap_corr_LC1_4)
+boot.ci(boot.out = bootstrap_corr_LC1_4, conf = .95, type = "bca")
+
+corr.fun5 <- function(data, idx)
+{
+  df <- data[idx, ]
+ 
+ #Now Repeat for the variable 5
+  c(cor(df[, 5], df[, 21], method = 'pearson'))
+}
+bootstrap_corr_LC1_5 <- boot(data = Bootstrapped_df, statistic = corr.fun5, R = 1000)
+print(bootstrap_corr_LC1_5)
+plot(bootstrap_corr_LC1_5)
+boot.ci(boot.out = bootstrap_corr_LC1_5, conf = .95, type = "bca")
+
+corr.fun6 <- function(data, idx)
+{
+  df <- data[idx, ]
+ 
+ #Now Repeat for the variable 6
+  c(cor(df[, 6], df[, 21], method = 'pearson'))
+}
+bootstrap_corr_LC1_6 <- boot(data = Bootstrapped_df, statistic = corr.fun6, R = 1000)
+print(bootstrap_corr_LC1_6)
+plot(bootstrap_corr_LC1_6)
+boot.ci(boot.out = bootstrap_corr_LC1_6, conf = .95, type = "bca")
+
+corr.fun7 <- function(data, idx)
+{
+  df <- data[idx, ]
+ 
+ #Now Repeat for the variable 7
+  c(cor(df[, 7], df[, 21], method = 'pearson'))
+}
+bootstrap_corr_LC1_7 <- boot(data = Bootstrapped_df, statistic = corr.fun7, R = 1000)
+print(bootstrap_corr_LC1_7)
+plot(bootstrap_corr_LC1_7)
+boot.ci(boot.out = bootstrap_corr_LC1_7, conf = .95, type = "bca")
+
+corr.fun8 <- function(data, idx)
+{
+  df <- data[idx, ]
+ 
+ #Now Repeat for the variable 8
+  c(cor(df[, 8], df[, 21], method = 'pearson'))
+}
+bootstrap_corr_LC1_8 <- boot(data = Bootstrapped_df, statistic = corr.fun8, R = 1000)
+print(bootstrap_corr_LC1_8)
+plot(bootstrap_corr_LC1_8)
+boot.ci(boot.out = bootstrap_corr_LC1_8, conf = .95, type = "bca")
+
+corr.fun9 <- function(data, idx)
+{
+  df <- data[idx, ]
+ 
+ #Now Repeat for the variable 9
+  c(cor(df[, 9], df[, 21], method = 'pearson'))
+}
+bootstrap_corr_LC1_9 <- boot(data = Bootstrapped_df, statistic = corr.fun9, R = 1000)
+print(bootstrap_corr_LC1_9)
+plot(bootstrap_corr_LC1_9)
+boot.ci(boot.out = bootstrap_corr_LC1_9, conf = .95, type = "bca")
+
+corr.fun10 <- function(data, idx)
+{
+  df <- data[idx, ]
+ 
+ #Now Repeat for the variable 10
+  c(cor(df[, 10], df[, 21], method = 'pearson'))
+}
+bootstrap_corr_LC1_10 <- boot(data = Bootstrapped_df, statistic = corr.fun10, R = 1000)
+print(bootstrap_corr_LC1_10)
+plot(bootstrap_corr_LC1_10)
+boot.ci(boot.out = bootstrap_corr_LC1_10, conf = .95, type = "bca")
+
+corr.fun11 <- function(data, idx)
+{
+  df <- data[idx, ]
+ 
+ #Now Repeat for the variable 11
+  c(cor(df[, 11], df[, 21], method = 'pearson'))
+}
+bootstrap_corr_LC1_11 <- boot(data = Bootstrapped_df, statistic = corr.fun11, R = 1000)
+print(bootstrap_corr_LC1_11)
+plot(bootstrap_corr_LC1_11)
+boot.ci(boot.out = bootstrap_corr_LC1_11, conf = .95, type = "bca")
+
+
+corr.fun12 <- function(data, idx)
+{
+  df <- data[idx, ]
+ 
+   #Now Repeat for the variable 12
+  c(cor(df[, 12], df[, 21], method = 'pearson'))
+}
+bootstrap_corr_LC1_12 <- boot(data = Bootstrapped_df, statistic = corr.fun12, R = 1000)
+print(bootstrap_corr_LC1_12)
+plot(bootstrap_corr_LC1_12)
+boot.ci(boot.out = bootstrap_corr_LC1_12, conf = .95, type = "bca")
+
+#Disease Duration
+corr.fun13 <- function(data, idx)
+{
+  df <- data[idx, ]
+ 
+ #Now Repeat for the variable 13
+  c(cor(df[, 13], df[, 21], method = 'pearson'))
+}
+bootstrap_corr_LC1_13 <- boot(data = Bootstrapped_df, statistic = corr.fun13, R = 1000)
+print(bootstrap_corr_LC1_13)
+plot(bootstrap_corr_LC1_13)
+boot.ci(boot.out = bootstrap_corr_LC1_13, conf = .95, type = "bca")
+
+
+corr.fun14 <- function(data, idx)
+{
+  df <- data[idx, ]
+ 
+ #Now Repeat for the variable 14
+  c(cor(df[, 14], df[, 21], method = 'pearson'))
+}
+bootstrap_corr_LC1_14 <- boot(data = Bootstrapped_df, statistic = corr.fun14, R = 1000)
+print(bootstrap_corr_LC1_14)
+plot(bootstrap_corr_LC1_14)
+boot.ci(boot.out = bootstrap_corr_LC1_14, conf = .95, type = "bca")
+
+corr.fun15 <- function(data, idx)
+{
+  df <- data[idx, ]
+ 
+ #Now Repeat for the variable 15
+  c(cor(df[, 15], df[, 21], method = 'pearson'))
+}
+bootstrap_corr_LC1_15 <- boot(data = Bootstrapped_df, statistic = corr.fun15, R = 1000)
+print(bootstrap_corr_LC1_15)
+plot(bootstrap_corr_LC1_15)
+boot.ci(boot.out = bootstrap_corr_LC1_15, conf = .95, type = "bca")
+
+
+corr.fun16 <- function(data, idx)
+{
+  df <- data[idx, ]
+ 
+ #Now Repeat for the variable 16
+  c(cor(df[, 16], df[, 21], method = 'pearson'))
+}
+bootstrap_corr_LC1_16 <- boot(data = Bootstrapped_df, statistic = corr.fun16, R = 1000)
+print(bootstrap_corr_LC1_16)
+plot(bootstrap_corr_LC1_16)
+boot.ci(boot.out = bootstrap_corr_LC1_16, conf = .95, type = "bca")
+
+corr.fun17 <- function(data, idx)
+{
+  df <- data[idx, ]
+ 
+  #Now Repeat for the variable 17
+  c(cor(df[, 17], df[, 21], method = 'pearson'))
+}
+bootstrap_corr_LC1_17 <- boot(data = Bootstrapped_df, statistic = corr.fun17, R = 1000)
+print(bootstrap_corr_LC1_17)
+plot(bootstrap_corr_LC1_17)
+boot.ci(boot.out = bootstrap_corr_LC1_17, conf = .95, type = "bca")
+
+
+corr.fun18 <- function(data, idx)
+{
+  df <- data[idx, ]
+ 
+  #Now Repeat for the variable 18
+  c(cor(df[, 18], df[, 21], method = 'pearson'))
+}
+bootstrap_corr_LC1_18 <- boot(data = Bootstrapped_df, statistic = corr.fun18, R = 1000)
+print(bootstrap_corr_LC1_18)
+plot(bootstrap_corr_LC1_18)
+boot.ci(boot.out = bootstrap_corr_LC1_18, conf = .95, type = "bca")
+
+
+corr.fun19 <- function(data, idx)
+{
+  df <- data[idx, ]
+ 
+ #Now Repeat for the variable 19
+
+  c(cor(df[, 19], df[, 21], method = 'pearson'))
+}
+bootstrap_corr_LC1_19 <- boot(data = Bootstrapped_df, statistic = corr.fun19, R = 1000)
+print(bootstrap_corr_LC1_19)
+plot(bootstrap_corr_LC1_19)
+boot.ci(boot.out = bootstrap_corr_LC1_19, conf = .95, type = "bca")
+
+corr.fun20 <- function(data, idx)
+{
+  df <- data[idx, ]
+ 
+ #Now Repeat for the variable 20
+  c(cor(df[, 20], df[, 21], method = 'pearson'))
+}
+bootstrap_corr_LC1_20 <- boot(data = Bootstrapped_df, statistic = corr.fun20, R = 1000)
+print(bootstrap_corr_LC1_20)
+plot(bootstrap_corr_LC1_20)
+boot.ci(boot.out = bootstrap_corr_LC1_20, conf = .95, type = "bca")
+
+boot.ci(boot.out = bootstrap_corr_LC1_1, conf = .95, type = "bca")
+boot.ci(boot.out = bootstrap_corr_LC1_2, conf = .95, type = "bca")
+boot.ci(boot.out = bootstrap_corr_LC1_3, conf = .95, type = "bca")
+boot.ci(boot.out = bootstrap_corr_LC1_4, conf = .95, type = "bca")
+boot.ci(boot.out = bootstrap_corr_LC1_5, conf = .95, type = "bca")
+boot.ci(boot.out = bootstrap_corr_LC1_6, conf = .95, type = "bca")
+boot.ci(boot.out = bootstrap_corr_LC1_7, conf = .95, type = "bca")
+boot.ci(boot.out = bootstrap_corr_LC1_8, conf = .95, type = "bca")
+boot.ci(boot.out = bootstrap_corr_LC1_9, conf = .95, type = "bca")
+boot.ci(boot.out = bootstrap_corr_LC1_10, conf = .95, type = "bca")
+boot.ci(boot.out = bootstrap_corr_LC1_11, conf = .95, type = "bca")
+boot.ci(boot.out = bootstrap_corr_LC1_12, conf = .95, type = "bca")
+boot.ci(boot.out = bootstrap_corr_LC1_13, conf = .95, type = "bca")
+boot.ci(boot.out = bootstrap_corr_LC1_14, conf = .95, type = "bca")
+boot.ci(boot.out = bootstrap_corr_LC1_15, conf = .95, type = "bca")
+boot.ci(boot.out = bootstrap_corr_LC1_16, conf = .95, type = "bca")
+boot.ci(boot.out = bootstrap_corr_LC1_17, conf = .95, type = "bca")
+boot.ci(boot.out = bootstrap_corr_LC1_18, conf = .95, type = "bca")
+boot.ci(boot.out = bootstrap_corr_LC1_19, conf = .95, type = "bca")
+boot.ci(boot.out = bootstrap_corr_LC1_20, conf = .95, type = "bca")
+#boot.ci(boot.out = bootstrap_corr_LC1_21, conf = .95, type = "bca")
+
+CI_min_LC1<- c(-0.7302, -0.1533,-0.3075,0.2254,0.3930, 0.6098, 0.4646, 0.3594, 0.4901, 0.6727, 0.0996, 0.3202, 0.5522, 0.1922, 0.5001, 0.2301, -0.2406, -0.3911, 0.4972, -0.6743)
+CI_max_LC1<- c(-0.4081, 0.3147,0.0859,0.6280,0.6929, 0.9002, 0.7992, 0.7009, 0.7449, 0.9108, 0.5365, 0.7088, 0.8743, 0.6184, 0.8180, 0.5255, 0.1888, 0.0577, 0.8239, -0.3839)
+
+length(CI_min_LC1)
+length(CI_max_LC1)
+
+#Repeat process for each LC
+
+CI_PLS_Y<- tibble(CI_min_LC1, CI_max_LC1, CI_min_LC2, CI_max_LC2, CI_min_LC3, CI_max_LC3, CI_min_LC4, CI_max_LC4, CI_min_LC5, CI_max_LC5) %>% mutate(Names = names_vec) %>% relocate(Names, .before=CI_min_LC1)
+
+CI_PLS_Y
+
+#write_csv(CI_PLS_Y, '/Users/alexander_bailey/NEUR608/Data/Temp/NEUR608_CI_Correct_Y_matrix_main_Dec_8_2022.csv')
+
+#Now, let's make our plots for the Correlation Strength of Behavioural Structural Coefficient
+CI_PLS_Y <-read_csv('/Users/alexander_bailey/NEUR608/Data/Temp/NEUR608_CI_Correct_Y_matrix_main_Dec_8_2022.csv') %>% mutate(Domains = c("General", "General", "General", "Attention/Working Memory", "Memory", "Attention/Working Memory", "Visuospatial", "Memory", "Visuospatial", "Executive", "Executive", "Executive", "Executive", "Language", "Langage", "Language", "Medication", "QOL", "General Cognition", "Motor")) %>% relocate(Domains, .after = Names) 
+
+CI_PLS_Y
+#Just remember to save this! 
+
+CI_PLS_Y_Test_For_Domains <- CI_PLS_Y %>% arrange(Domains)
+CI_PLS_Y_Test_For_Domains
+
+df_LC1_by_domains<-df_LC1 %>% arrange(Domains) %>% mutate(Names_LC1 = fct_reorder(Names_LC1, desc(Domains)))
+df_LC2_by_domains<-df_LC2 %>% arrange(Domains) %>% mutate(Names_LC2 = fct_reorder(Names_LC2, desc(Domains)))
+df_LC3_by_domains<-df_LC3 %>% arrange(Domains) %>% mutate(Names_LC3 = fct_reorder(Names_LC3, desc(Domains)))
+df_LC4_by_domains<-df_LC4 %>% arrange(Domains) %>% mutate(Names_LC4 = fct_reorder(Names_LC4, desc(Domains)))
+df_LC5_by_domains<-df_LC5 %>% arrange(Domains) %>% mutate(Names_LC5 = fct_reorder(Names_LC5, desc(Domains)))
+
+ggplot(df_LC1_by_domains, aes(x = Names_LC1, y = LC1_Corr, fill= Domains)) + geom_bar(stat="identity") + coord_flip() + geom_errorbar(aes(Names_LC1, ymin = CI_PLS_Y_Test_For_Domains$CI_min_LC1, ymax=CI_PLS_Y_Test_For_Domains$CI_max_LC1), width=0.4, colour="black", alpha=0.9, size=1.3) + labs(x ="Behavioural Composites", y = "Correlation", title ='Correlation Strength of Behavioural Structural Coefficient (LC1*Y)') + scale_fill_brewer(palette="Spectral") + theme_classic() + theme(legend.key.size = unit(4, 'mm'))  #GOT IT! THIS COULD SERIOUSLY WORK!  
+
+ggplot(df_LC2_by_domains, aes(x = Names_LC2, y = LC2_Corr, fill= Domains)) + geom_bar(stat="identity") + coord_flip() + geom_errorbar(aes(Names_LC2, ymin = CI_PLS_Y_Test_For_Domains$CI_min_LC2, ymax=CI_PLS_Y_Test_For_Domains$CI_max_LC2), width=0.4, colour="black", alpha=0.9, size=1.3) + labs(x ="Behavioural Composites", y = "Correlation", title ='Correlation Strength of Behavioural Structural Coefficient (LC2*Y)') + scale_fill_brewer(palette="Spectral") + theme_classic() + theme(legend.key.size = unit(4, 'mm'))  #GOT IT! THIS COULD SERIOUSLY WORK!  
+
+ggplot(df_LC3_by_domains, aes(x = Names_LC3, y = LC3_Corr, fill= Domains)) + geom_bar(stat="identity") + coord_flip() + geom_errorbar(aes(Names_LC3, ymin = CI_PLS_Y_Test_For_Domains$CI_min_LC3, ymax=CI_PLS_Y_Test_For_Domains$CI_max_LC3), width=0.4, colour="black", alpha=0.9, size=1.3) + labs(x ="Behavioural Composites", y = "Correlation", title ='Correlation Strength of Behavioural Structural Coefficient (LC3*Y)') + scale_fill_brewer(palette="Spectral") + theme_classic() + theme(legend.key.size = unit(4, 'mm'))  #GOT IT! THIS COULD SERIOUSLY WORK!  
+
+ggplot(df_LC4_by_domains, aes(x = Names_LC4, y = LC4_Corr, fill= Domains)) + geom_bar(stat="identity") + coord_flip() + geom_errorbar(aes(Names_LC4, ymin = CI_PLS_Y_Test_For_Domains$CI_min_LC4, ymax=CI_PLS_Y_Test_For_Domains$CI_max_LC4), width=0.4, colour="black", alpha=0.9, size=1.3) + labs(x ="Behavioural Composites", y = "Correlation", title ='Correlation Strength of Behavioural Structural Coefficient (LC4*Y)') + scale_fill_brewer(palette="Spectral") + theme_classic() + theme(legend.key.size = unit(4, 'mm'))  #GOT IT! THIS COULD SERIOUSLY WORK!  
+
+ggplot(df_LC5_by_domains, aes(x = Names_LC5, y = LC5_Corr, fill= Domains)) + geom_bar(stat="identity") + coord_flip() + geom_errorbar(aes(Names_LC5, ymin = CI_PLS_Y_Test_For_Domains$CI_min_LC5, ymax=CI_PLS_Y_Test_For_Domains$CI_max_LC5), width=0.4, colour="black", alpha=0.9, size=1.3) + labs(x ="Behavioural Composites", y = "Correlation", title ='Correlation Strength of Behavioural Structural Coefficient (LC5*Y)') + scale_fill_brewer(palette="Spectral") + theme_classic() + theme(legend.key.size = unit(4, 'mm'))  #GOT IT! THIS COULD SERIOUSLY WORK! 
+
+
+#GGSEG for Brain
+
+library(tidyverse)
+library(tidymodels)
+library(easystats)
+library(circlize)
+library(gridBase)
+library(grid)
+library(gridExtra)
+library(ggseg)
+library(ggseg3d)
+library(ggsegSchaefer)
+
+c(ggsegSchaefer::schaefer17_400$data$label)
+
+Schaeffer_atlas<- schaefer17_400$data
+Schaeffer_atlas
+
+new_labels<- read_csv('/Users/alexander_bailey/NEUR608/Data/Temp/NewIndexLabels_For_Brain_Mesh_Dec_9_2022.csv') %>% rename(New_Labels = `0`)
+new_labels
+
+#Let's go back two brain matrices and then two brain diagrams! THEN WE'RE FINISHED WITH THE RESULTS (and can make a table only if needed)
+
+
+Main_To_Corr1<- read_csv('/Users/alexander_bailey/NEUR608/Data/Temp/Original_DF_PLS_LxC1_Matrix_THRESHOLDED_Dec_9_2022.csv')
+Main_To_Corr1
+matrix_1<- Main_To_Corr1 %>% select(2:length(Main_To_Corr1)) %>% as.matrix
+matrix_1[]<-ifelse(matrix_1!=0, 1, 0)
+DF_1<- data.frame(matrix_1)
+sum(c(DF_1[,1]))
+
+DF_1_correct<- bind_cols(new_labels, DF_1)
+DF_complete_1<- DF_1_correct %>% rowwise(New_Labels) %>% summarise(total1 = sum(across())) %>% ungroup() #This seems to be correct
+
+
+
+Main_To_Corr2<- read_csv('/Users/alexander_bailey/NEUR608/Data/Temp/Original_DF_PLS_LxC2_Matrix_THRESHOLDED_Dec_9_2022.csv')
+matrix_2<- Main_To_Corr2 %>% select(2:length(Main_To_Corr2)) %>% as.matrix
+matrix_2[]<-ifelse(matrix_2!=0, 1, 0)
+DF_2<- data.frame(matrix_2)
+DF_2_correct<- bind_cols(new_labels, DF_2)
+DF_complete_2<- DF_2_correct %>% rowwise(New_Labels) %>% summarise(total2 = sum(across())) %>% ungroup() #This seems to be correct
+
+#MAIN LC3
+Main_To_Corr3<- read_csv('/Users/alexander_bailey/NEUR608/Data/Temp/Original_DF_PLS_LxC3_Matrix_THRESHOLDED_Dec_9_2022.csv')
+matrix_3<- Main_To_Corr3 %>% select(2:length(Main_To_Corr3)) %>% as.matrix
+matrix_3[]<-ifelse(matrix_3!=0, 1, 0)
+DF_3<- data.frame(matrix_3)
+DF_3_correct<- bind_cols(new_labels, DF_3)
+DF_complete_3<- DF_3_correct %>% rowwise(New_Labels) %>% summarise(total3 = sum(across())) %>% ungroup()  #This seems to be correct
+
+
+#MAIN LC4
+Main_To_Corr4<- read_csv('/Users/alexander_bailey/NEUR608/Data/Temp/Original_DF_PLS_LxC4_Matrix_THRESHOLDED_Dec_9_2022.csv')
+matrix_4<- Main_To_Corr4 %>% select(2:length(Main_To_Corr4)) %>% as.matrix
+matrix_4[]<-ifelse(matrix_4!=0, 1, 0)
+DF_4<- data.frame(matrix_4)
+DF_4_correct<- bind_cols(new_labels, DF_4)
+DF_complete_4<- DF_4_correct %>% rowwise(New_Labels) %>% summarise(total4 = sum(across())) %>% ungroup() #This seems to be correct
+
+
+#MAIN LC5
+Main_To_Corr5<- read_csv('/Users/alexander_bailey/NEUR608/Data/Temp/Original_DF_PLS_LxC5_Matrix_THRESHOLDED_Dec_9_2022.csv')
+matrix_5<- Main_To_Corr5 %>% select(2:length(Main_To_Corr5)) %>% as.matrix
+matrix_5[]<-ifelse(matrix_5!=0, 1, 0)
+DF_5<-data.frame(matrix_5)
+DF_5_correct<- bind_cols(new_labels, DF_5)
+DF_complete_5<- DF_5_correct %>% rowwise(New_Labels) %>% summarise(total5 = sum(across())) %>% ungroup() #This seems to be correct
+
+main_matrix_total<- matrix_1 + matrix_2 + matrix_3 + matrix_4 + matrix_5
+
+main_matrix_total_df<- data.frame(main_matrix_total)
+
+write_csv(main_matrix_total_df, '/Users/alexander_bailey/NEUR608/Data/Temp/Original_DF_PLS_SUMMED_THRESHOLDED_Dec_9_2022.csv') #This is key for the functional connectivity matrix of the summed and thresholded (via FDR) values
+
+#total = rowSums(across(where(is.numeric)))) #Alternative way of doing things
+
+DF_complete_complete<- DF_complete_1 %>% left_join(DF_complete_2, by = "New_Labels") %>% left_join(DF_complete_3, by = "New_Labels") %>% left_join(DF_complete_4, by = "New_Labels") %>% left_join(DF_complete_5, by = "New_Labels")
+
+DF_complete_complete_to_use<- DF_complete_complete %>% mutate(total = rowSums(across(where(is.numeric)))) %>% select(New_Labels, total) %>% rename(label = New_Labels)
+
+DF_complete_complete_to_use
+
+Brain_Main<- Schaeffer_atlas %>% left_join(DF_complete_complete_to_use, by = "label") %>% rename(`Sum of Absolute Correlations Across LCs` = total)
+
+```
+
+```{r}
+Brain_Main= Brain_Main[!is.na(Brain_Main$region),]
+ggplot(Brain_Main) +
+  geom_brain(atlas = schaefer17_400, 
+             position = position_brain(hemi ~ side),
+             mapping=aes(fill=`Sum of Absolute Correlations Across LCs`, colour= `Sum of Absolute Correlations Across LCs`)) +
+  viridis::scale_fill_viridis(option = 'viridis')+viridis::scale_colour_viridis(option = 'viridis')+
+  theme_void() +
+    labs(title = "Strength of ROIs Across LCs 1 to 5, Main DataFrame") + theme(legend.position = "bottom")
+```
+
+Final Brain Map For Total Sum
+%matplotlib inline
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+import seaborn as sns
+import sklearn as scikitlearn
+import scipy
+import bokeh as bokeh
+import enigmatoolbox
+import os as os
+import nilearn as nl
+
+import nibabel as nibl
+from nilearn import plotting
+from nilearn import image
+import statsmodels
+import pingouin
+import plotly
+
+from nilearn.connectome import ConnectivityMeasure
+correlation_measure = ConnectivityMeasure(kind='correlation')
+from nilearn.connectome import vec_to_sym_matrix
+
+new_corrected_labels = pd.read_csv('/Users/alexander_bailey/NEUR608/Data/Temp/NEUR608_Correct_Label_Names_Nov_24_2022.csv')
+
+Full_Corr_matrix_vector_Summed_main = pd.read_csv('/Users/alexander_bailey/NEUR608/Data/Temp/Original_DF_PLS_SUMMED_THRESHOLDED_Dec_9_2022.csv')
+
+Full_Corr_matrix_vector_Summed_main
+Full_Corr_matrix_vector_Summed_main.columns = new_corrected_labels
+Full_Corr_matrix_vector_Summed_main.index = new_corrected_labels
+Full_Corr_matrix_vector_Summed_main = Full_Corr_matrix_vector_Summed_main.fillna(0)
+plotting.plot_matrix(Full_Corr_matrix_vector_Summed_main, cmap = 'viridis')
+
+plt.axhline(y = 24, color = 'orange', linestyle = '-')
+plt.axhline(y = 59, color = 'orange', linestyle = '-')
+plt.axhline(y = 85, color = 'orange', linestyle = '-')
+plt.axhline(y = 108, color = 'orange', linestyle = '-')
+plt.axhline(y = 120, color = 'orange', linestyle = '-')
+plt.axhline(y = 148, color = 'orange', linestyle = '-')
+plt.axhline(y = 194, color = 'orange', linestyle = '-')
+plt.axhline(y = 200, color = 'orange', linestyle = '-')
+plt.axhline(y = 224, color = 'orange', linestyle = '-')
+plt.axhline(y = 259, color = 'orange', linestyle = '-')
+plt.axhline(y = 285, color = 'orange', linestyle = '-')
+plt.axhline(y = 308, color = 'orange', linestyle = '-')
+plt.axhline(y = 320, color = 'orange', linestyle = '-')
+plt.axhline(y = 348, color = 'orange', linestyle = '-')
+plt.axhline(y = 394, color = 'orange', linestyle = '-')
+plt.axvline(x = 24, color = 'orange', label = 'axvline - full height')
+plt.axvline(x = 59, color = 'orange', label = 'axvline - full height')
+plt.axvline(x = 85, color = 'orange', label = 'axvline - full height')
+plt.axvline(x = 108, color = 'orange', label = 'axvline - full height')
+plt.axvline(x = 120, color = 'orange', label = 'axvline - full height')
+plt.axvline(x = 148, color = 'orange', label = 'axvline - full height')
+plt.axvline(x = 194, color = 'orange', label = 'axvline - full height')
+plt.axvline(x = 200, color = 'orange', label = 'axvline - full height')
+plt.axvline(x = 224, color = 'orange', label = 'axvline - full height')
+plt.axvline(x = 259, color = 'orange', label = 'axvline - full height')
+plt.axvline(x = 285, color = 'orange', label = 'axvline - full height')
+plt.axvline(x = 308, color = 'orange', label = 'axvline - full height')
+plt.axvline(x = 320, color = 'orange', label = 'axvline - full height')
+plt.axvline(x = 348, color = 'orange', label = 'axvline - full height')
+plt.axvline(x = 394, color = 'orange', label = 'axvline - full height')
+
+tickloc = [12.5, 42, 72.5, 97, 114.5, 134.5, 171.5, 197.5, 212.5, 242, 272.5, 297, 314.5, 334.5, 371.5, 397.5]
+labels = ["Visual_L", "SM_L", "DAtt_L", "VAtt_L", "Limbic_L", "Control_L", "DMN_L", "Temp_Par_L", "Visual_R", "SM_R", "DAtt_R", "VAtt_R", "Limbic_R", "Control_R", "DMN_R", "Temp_Par_R"]
+plt.title('Thresholded (FDR-corrected) RSFC Correlations')
+plt.xticks(tickloc, labels, rotation='vertical')
+plt.yticks(tickloc, labels)
+plt.show()
+
+
+
+
+
+
+#Now let's make circle diagrams
+
+Let's Make Circle Diagrams! 
+
+library(tidyverse)
+#MAIN LC1 #This is just an example of a dataframe to select for 'circlize' circle diagram
+Main_To_Corr<- read_csv('/Users/alexander_bailey/NEUR608/Data/Temp/Original_DF_PLS_LxC1_Matrix_THRESHOLDED_Dec_9_2022.csv')
+Main_To_Corr
+
+
+names(Main_To_Corr %>% dplyr::select(2: length(Main_To_Corr)))
+##VISUAL
+#VisCent_ExStr = 1 to 12 and 201 to 212  === VisA
+VisA<- Main_To_Corr %>% select(2: length(Main_To_Corr)) %>% select(1:12, 201:212) %>% mutate(VisA = rowMeans(., na.rm = TRUE)) %>% select(VisA) #This is how we do things!
+
+#VisPeri_ExStr = 13 to 24 and 213 to 223 === VisB
+
+VisB<- Main_To_Corr %>% select(2: length(Main_To_Corr)) %>% select(13:24, 213:223) %>% mutate(VisB = rowMeans(., na.rm = TRUE)) %>% select(VisB) #This is how we do things!
+
+#SOMATOMOTOR
+#SomatoMotor A: 25 to 43 and 224-243
+SM_A<- Main_To_Corr %>% select(2: length(Main_To_Corr)) %>% select(25:43, 224:243) %>% mutate(SM_A = rowMeans(., na.rm = TRUE)) %>% select(SM_A) #This is how we do things!
+#SomatorMotor B: 44 -59 and 244-258
+SM_B<- Main_To_Corr %>% select(2: length(Main_To_Corr)) %>% select(44:59, 244:258) %>% mutate(SM_B = rowMeans(., na.rm = TRUE)) %>% select(SM_B)
+
+#DAttA: 60-72 AND 259-272
+DAttA<- Main_To_Corr %>% select(2: length(Main_To_Corr)) %>% select(60:72, 259:272) %>% mutate(DAttA = rowMeans(., na.rm = TRUE)) %>% select(DAttA)
+#DAttB: 73-85 AND 273-284
+DAttB<- Main_To_Corr %>% select(2: length(Main_To_Corr)) %>% select(73:85, 273:284) %>% mutate(DAttB = rowMeans(., na.rm = TRUE)) %>% select(DAttB)
+
+#VAttA: 86-100 AND 285-303
+VAttA<- Main_To_Corr %>% select(2: length(Main_To_Corr)) %>% select(86:100, 285:303) %>% mutate(VAttA = rowMeans(., na.rm = TRUE)) %>% select(VAttA)
+#VAttB: 101-108 AND 304-312
+VAttB<- Main_To_Corr %>% select(2: length(Main_To_Corr)) %>% select(101:108, 304:312) %>% mutate(VAttB = rowMeans(., na.rm = TRUE)) %>% select(VAttB)
+
+#LimB:109-113 AND 313-318
+LimB<- Main_To_Corr %>% select(2: length(Main_To_Corr)) %>% select(109:113, 313:318) %>% mutate(LimB = rowMeans(., na.rm = TRUE)) %>% select(LimB)
+#LimA:114-120 AND 319-324
+LimA<- Main_To_Corr %>% select(2: length(Main_To_Corr)) %>% select(114:120, 319:324) %>% mutate(LimA = rowMeans(., na.rm = TRUE)) %>% select(LimA)
+
+#CTA: 121-133 AND 325-335
+CTA<- Main_To_Corr %>% select(2: length(Main_To_Corr)) %>% select(121:133, 325:335) %>% mutate(CTA = rowMeans(., na.rm = TRUE)) %>% select(CTA)
+#CTB: 134-143 AND 336-350
+CTB<- Main_To_Corr %>% select(2: length(Main_To_Corr)) %>% select(134:143, 336:350) %>% mutate(CTB = rowMeans(., na.rm = TRUE)) %>% select(CTB)
+#CTC: 144-148 AND 351-357
+CTC<- Main_To_Corr %>% select(2: length(Main_To_Corr)) %>% select(144:148, 351:357) %>% mutate(CTC = rowMeans(., na.rm = TRUE)) %>% select(CTC)
+
+#DMNA: 149-166 AND 358-373
+DMNA<- Main_To_Corr %>% select(2: length(Main_To_Corr)) %>% select(149:166, 358:373) %>% mutate(DMNA = rowMeans(., na.rm = TRUE)) %>% select(DMNA)
+#DMNB: 167-187 AND 374-384
+DMNB<- Main_To_Corr %>% select(2: length(Main_To_Corr)) %>% select(167:187, 374:384) %>% mutate(DMNB = rowMeans(., na.rm = TRUE)) %>% select(DMNB)
+#DMNC: 188-194 AND 385-390
+DMNC<- Main_To_Corr %>% select(2: length(Main_To_Corr)) %>% select(188:194, 385:390) %>% mutate(DMNC = rowMeans(., na.rm = TRUE)) %>% select(DMNC)
+
+#Temp_Par: 195-200 AND 391-400 
+Temp_Par<- Main_To_Corr %>% select(2: length(Main_To_Corr)) %>% select(195:200, 391:400) %>% mutate(Temp_Par = rowMeans(., na.rm = TRUE)) %>% select(Temp_Par)
+
+library("circlize") #Follow main information to make it all pretty and useful!
+library("grid")
+
+Main_Circle_Correlation_Graph<- tibble(VisA, VisB, SM_A, SM_B, DAttA, DAttB, VAttA, VAttB, LimB, LimA, CTA, CTB, CTC, DMNA, DMNB, DMNC, Temp_Par)
+
+Main_Circle_Correlation_Graph
+#To get it to work, need to also mean all the groups? How? We add IDs and group it
+
+ID_vec<- rep(NA, 400)
+ID_vec
+length(ID_vec)
+
+
+ID_vec[c(1:12,201:212) ]<- "VisA"
+ID_vec[c(13:24, 213:223)]<- "VisB"
+ID_vec[c(25:43, 224:243)]<-"SM_A" #SMA: 25:43 and 224:243
+ID_vec[c(44:59, 244:258)]<-"SM_B" ##SMB: 44:59 and 244:258
+ID_vec[c(60:72, 259:272)]<-"DAttA" #DAttA: 60:72 AND 259:272
+ID_vec[c(73:85, 273:284)]<-"DAttB" #DAttB: 73:85 AND 273:284
+ID_vec[c(86:100, 285:303)]<-"VAttA" #VAttA: 86:100 AND 285:303
+ID_vec[c(101:108, 304:312)]<-"VAttB" #VAttB: 101:108 AND 304:312
+ID_vec[c(109:113, 313:318)]<-"LimB" #LimB:109:113 AND 313:318
+ID_vec[c(114:120, 319:324)]<-"LimA" #LimA:114:120 AND 319-324
+ID_vec[c(121:133, 325:335)]<-"CTA" #CTA: 121:133 AND 325:335
+ID_vec[c(134:143, 336:350)]<-"CTB" #CTB: 134:143 AND 336:350
+ID_vec[c(144:148, 351:357)]<-"CTC" #CTC: 144:148 AND 351:357
+ID_vec[c(149:166, 358:373)]<-"DMNA" #DMNA: 149:166 AND 358:373
+ID_vec[c(167:187, 374:384)]<-"DMNB" #DMNB: 167:187 AND 374:384
+ID_vec[c(188:194, 385:390)]<-"DMNC" #DMNC: 188:194 AND 385:390
+ID_vec[c(195:200, 391:400)]<-"Temp_Par" #Temp_Par: 195:200 AND 391:400
+ID_vec
+
+Main_Circle_Correlation_Graph_Ready<- Main_Circle_Correlation_Graph %>% mutate(ID_vec) %>% relocate(ID_vec, .before = VisA) %>% group_by(ID_vec) %>% summarise(across(VisA:length(Main_Circle_Correlation_Graph), mean)) %>% rename(VisA = VisA, VisB = VisB)
+
+ID_listings<-c(Main_Circle_Correlation_Graph_Ready$ID_vec)
+ID_listings
+
+Main_Circle_Correlation_Graph_Ready
+
+
+df_almost<- Main_Circle_Correlation_Graph_Ready %>% select(2:length(Main_Circle_Correlation_Graph_Ready))
+dim(df_almost)
+
+mat_corr<- as.matrix(as.data.frame(df_almost))
+
+mat_corr
+rownames(mat_corr) = ID_listings
+mat_corr
+
+unique(unlist(dimnames(mat_corr)))
+
+group<- c("Control", "Control", "Control", "Default Mode", "Default Mode", "Default Mode", "Dorsal Attention", "Dorsal Attention", "Limbic", "Limbic", "Salience/Ventral Attention", "Salience/Ventral Attention", "SomatoMotor", "SomatoMotor", "Temp_Par", "Visual", "Visual")
+
+names_ROIs<- c("CTA", "CTB", "CTC", "DMNA", "DMNB", "DMNC", "DAttA", "DAttB", "LimA", "LimB", "VAttA", "VAttB", "SM_A", "SM_B", "Temp_Par", "VisA", "VisB")
+names_ROIs_good<- structure(group, names = names_ROIs)
+names_ROIs_good
+
+#grid.col = structure(c(rep(2, 5), rep(3, 5), rep(4, 5)),
+#names = c(paste0("A", 1:5), paste0("B", 1:5), paste0("C", 1:5)))
+#grid.col
+
+grid.col_better <- c(VisA = "#440154FF",  VisB = "#48186AFF", SM_A = "#472D7BFF", SM_B = "#424086FF", CTA = "#3B528BFF", CTB = "#33638DFF", CTC = "#2C728EFF", DMNA = "#26828EFF", DMNB = "#21908CFF", DMNC = "#1F9F88FF" , VAttA = "#27AD81FF", VAttB = "#3EBC74FF" , DAttA = "#5DC863FF", DAttB = "#82D34DFF" , LimA = "#AADC32FF", LimB = "#D5E21AFF" , Temp_Par = "#FF8C00")
+
+#grid.col_better <- structure(c(rep(2, 3), rep(3, 3), rep(4, 2), rep(5,2), rep(6,2), rep(7,2), rep(8,1), rep(9,2)), names = group)
+grid.col_better
+
+dim(mat_corr)
+
+df = data.frame(from = rep(rownames(mat_corr), times = ncol(mat_corr)),
+    to = rep(colnames(mat_corr), each = nrow(mat_corr)),
+    value = as.vector(mat_corr),
+    stringsAsFactors = FALSE)
+max(df$value)
+
+library(RColorBrewer)
+
+viridis::viridis(17)
+grid.col = c(VisA = "#440154FF",  VisB = "#48186AFF", SM_A = "#472D7BFF", SM_B = "#424086FF", CTA = "#3B528BFF", CTB = "#33638DFF", CTC = "#2C728EFF", DMNA = "#26828EFF", DMNB = "#21908CFF", DMNC = "#1F9F88FF" , VAttA = "#27AD81FF", VAttB = "#3EBC74FF" , DAttA = "#5DC863FF", DAttB = "#82D34DFF" , LimA = "#AADC32FF", LimB = "#D5E21AFF" , Temp_Par = "#FDE725FF") 
+
+col_fun = colorRamp2(c(0, 0.15, 0.30, 0.45, 0.60, 0.75, 1.0), c(viridis::viridis(7)))
+#col_fun = colorRamp2(c(-2, 0, 2), c("green", "yellow", "red"))
+
+circlize_plot = function() {
+chordDiagram(df, symmetric = TRUE, group = names_ROIs_good, grid.col = grid.col_better, annotationTrack = c("grid"), col = col_fun,
+    preAllocateTracks = list(
+        track.height = mm_h(4),
+        track.margin = c(mm_h(4), 0)))
+
+circos.track(track.index = 2, panel.fun = function(x, y) {
+    sector.index = get.cell.meta.data("sector.index")
+    xlim = get.cell.meta.data("xlim")
+    ylim = get.cell.meta.data("ylim")
+    circos.text(mean(xlim), mean(ylim), sector.index, cex = 0.5, niceFacing = TRUE, col = "white")
+    col = c(viridis::viridis(17))
+}, bg.border = NA)
+
+highlight.sector(c("VisA", "VisB"), track.index = 1, col = "red", 
+    text = "Visual", cex = 0.8, text.col = "white", niceFacing = TRUE)
+highlight.sector(c("SM_A", "SM_B"), track.index = 1, col = "green", 
+    text = "Somatomotor", cex = 0.8, text.col = "white", niceFacing = TRUE)
+highlight.sector(c("CTA", "CTB", "CTC"), track.index = 1, col = "blue", 
+    text = "Control", cex = 0.8, text.col = "white", niceFacing = TRUE)
+highlight.sector(c("DMNA", "DMNB", "DMNC"), track.index = 1, col = "grey", 
+    text = "DMN", cex = 0.8, text.col = "white", niceFacing = TRUE)
+highlight.sector(c("VAttA", "VAttB"), track.index = 1, col = "black", 
+    text = "VAtt", cex = 0.8, text.col = "white", niceFacing = TRUE)
+highlight.sector(c("DAttA", "DAttB"), track.index = 1, col = "orange", 
+    text = "DAtt", cex = 0.8, text.col = "white", niceFacing = TRUE)
+highlight.sector(c("LimA", "LimB"), track.index = 1, col = "#7AD151FF", 
+    text = "Limbic ", cex = 0.8, text.col = "white", niceFacing = TRUE)
+highlight.sector("Temp_Par", track.index = 1, col = "purple", 
+    text = "Temp_Par", cex = 0.8, text.col = "white", niceFacing = TRUE)
+title("Circle Wiring Diagram For Independent DF LC ####") 
+
+circos.clear()
+} ###The above function provides a replicable way to develop a proper ChordDiagram for FC
+
+circlize_plot()
+lgd_links = Legend(at = c(0, 0.15, 0.30, 0.45, 0.60, 0.75, 1.0), col_fun = col_fun, title_position = "topleft", title = "Average Correlation Strength", direction = "horizontal")
+lgd_list_horizontal = packLegend(lgd_links,
+    direction = "horizontal")
+draw(lgd_list_horizontal, y = unit(4, "mm"), 
+    just = c("center", "bottom"))
+    
+#Now, let's make a table
+library("tidyverse")
+library("gt")
+library("gtsummary")
+library("labelled")
+
+Y_matrix_main<- read_csv('/Users/alexander_bailey/Sharp_Lab/Data/Temp/NEUR608_2022_UnStandardized_Main_Sample_Variables_Dec_7_TO_USE.csv') 
+main_graphing_df_Main_data<-read_csv('/Users/alexander_bailey/NEUR608/Data/Temp/NEUR608_Graphing_Main_Scatterplots_and_Bar_Graphs_Main_Data_Dec_7_2022_To_Use.csv')
+Y_matrix_main_good<- Y_matrix_main %>% mutate(Groups = main_groups) %>% relocate(Groups, .before = Age)
+Y_matrix_main_good %>% mutate(Groups = case_when(
+  Groups == "HC" ~ "HC",
+  Groups == "PD_MCI" ~ "PD MCI",
+  Groups == "PD_NC" ~ "PD NC"))
+  
+#This is looking nice! But let's see if it works well with respect to adding p-values per groups
+
+#class(Y_matrix_main_good_test$`Clock Command`)
+
+Y_matrix_main_good_test<- Y_matrix_main_good %>% mutate(Groups = case_when(
+  Groups == "HC" ~ "HC",
+  Groups == "PD_MCI" ~ "PD MCI",
+  Groups == "PD_NC" ~ "PD NC"))
+
+Y_matrix_main_good_test<- Y_matrix_main_good_test%>% set_variable_labels(
+  Age = "Age", `Education Yrs` = "Education Years", `Disease Duration Yrs` = "Disease Duration (Years)", DigitSpan = 'Digit Span', `HVLT Immediate` = "HVLT Immediate", `TMT A` = "TMT A", `Clock Command` = "Clock Command", RCFT_Delayed = "RCFT Delayed", `RCFT Copy` = "RCFT Copy", `Stroop D-Kefs Interference` = "Stroop D-Kefs Interference", `Stroop Golden Interference` = "Stroop Golden Interference", `Brixton Error` = "Brixton Error Reversed", `TMT B-A` = "TMT B-A", `Letter Fluency Total` = "Letter Fluency Total", `Semantic Fluency Total` = "Semantic Fluency Total", `BNT No-Indicators` = "BNT No-Indicators", `LED Amount` = "LED Amount", `PDQ-39 Total` = "PDQ-39 Total", MoCA = "MoCA", UPDRS = "UPDRS III") 
+
+
+#Finally, we can make the table
+Y_matrix_main_good_test %>% tbl_summary(by = Groups, type = list(where(is.numeric) ~ "continuous"), statistic = list(all_continuous() ~ "{mean} ({sd})"),
+    digits = all_continuous() ~ 2) %>% add_n() %>%
+  modify_header(label ~ "**Variables Assessed**") %>%
+  #modify_spanning_header(c("stat_2", "stat_3") ~ "**PD**") %>%
+  modify_caption("**Participant Characteristics**") %>% modify_caption("<div style='text-align: left; font-weight: bold; color: black'> Participant Characteristics</div>") 
+
